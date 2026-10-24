@@ -1,0 +1,16 @@
+{
+  "miniprogram/app.js": "cb150391fa58a266e630edbb43a148eca565cc3e59a2c17982cf9d61d1b26276",
+  "miniprogram/pages/editor/editor.js": "9e3875e0a8270f17e6698bac56653fe79128404ad1fa93e8ef280525415283e2",
+  "miniprogram/pages/index/index.js": "dd2d0a0c4ba5e033f73fb181e2dc36fa4a1ce55067f6a84db14d1a45cd394807",
+  "miniprogram/utils/audio.js": "a3149c265dbcc1f5032c5487b66c8c3e152674417331ecd56f16f166c72c0d58",
+  "miniprogram/utils/midi.js": "809f9e94ef2f2fd9c828a781a37d2df65f5ea8e4404637b4228d26cd208f93d2",
+  "miniprogram/utils/music.js": "fa6be95a6e5413c2a3de523dd5ea90a274e73fdfb76d17a45a9a84b803f37227",
+  "miniprogram/utils/pitch-config.js": "c2070b39e21ea161e5b7197811f1ec7d534479d12589bf1d7ee529c526a633d6",
+  "miniprogram/utils/pitch-segmentation.js": "ed2872faa3670a73d36d6a21d260a4494a6d1860694cbaa8495c1b71caa6e7dc",
+  "miniprogram/utils/pitch.js": "f7bb9c65f32dc5d0dfa58c79f8cca886e921f365e0e6e0b65a4c9d108eafd89c",
+  "miniprogram/utils/playback-clock.js": "f2a6f8b54230795e2232e5c0fbb62a6c9e93bce4bbbd535a72c3cf049e702456",
+  "miniprogram/utils/record-permission.js": "2c6008b805ae81ce3bb3190edd6810190ff4882f051a6343e71fabfadde349e1",
+  "miniprogram/utils/storage.js": "b73dd4a9f72d31fae75f54fde3133996db2edfa99a12a1a3168e8a59a4a12aca",
+  "miniprogram/utils/view-patch.js": "d5166cb59122e2f8d5d5a88ce599b5f0dfabea57062375d1cd9f3b27faa96a56",
+  "miniprogram/utils/wav.js": "b0a9d9866764553d64679de17db26f8b7775a6c0efa8df1ada644f316a2493fd"
+}

@@ -1,0 +1,75 @@
+{
+  "runtime": "v24.19.0",
+  "platform": "win32/x64",
+  "fixture": {
+    "ideas": 100,
+    "notesPerIdea": 500,
+    "moves": 40
+  },
+  "caveat": "Node mocks measure model work and exact bridge payload, not phone cold launch or frame rate.",
+  "homeModules": {
+    "ms": 7.553699999999999,
+    "files": [
+      "pages/index/index.js",
+      "utils/music.js",
+      "utils/storage.js",
+      "utils/audio.js",
+      "utils/wav.js",
+      "utils/playback-clock.js",
+      "utils/record-permission.js",
+      "utils/pitch.js",
+      "utils/pitch-segmentation.js",
+      "utils/pitch-config.js"
+    ],
+    "sourceBytes": 65918
+  },
+  "editorAdditionalModules": {
+    "ms": 2.2702999999999633,
+    "files": [
+      "pages/editor/editor.js",
+      "utils/midi.js"
+    ],
+    "sourceBytes": 20258
+  },
+  "homepage": {
+    "firstModelMs": 86.37129999999999,
+    "firstTransfer": {
+      "calls": 1,
+      "bytes": 4821481,
+      "largest": 4821481
+    },
+    "shown": 100,
+    "unchangedReturn": {
+      "ms": 94.97810000000001,
+      "calls": 1,
+      "bytes": 4821481,
+      "largest": 4821481,
+      "storageKeys": [
+        "humnote.drafts.v1",
+        "humnote.ideas.v1"
+      ]
+    },
+    "cachedStart": {
+      "ms": 74.67440000000002,
+      "calls": 1,
+      "bytes": 4821481,
+      "largest": 4821481,
+      "shown": 100
+    }
+  },
+  "editing": {
+    "firstModelMs": 32.68560000000002,
+    "firstTransfer": {
+      "calls": 2,
+      "bytes": 238774,
+      "largest": 238755
+    },
+    "drag40": {
+      "medianLogicMs": 2.473000000000013,
+      "p95LogicMs": 3.064200000000028,
+      "calls": 80,
+      "bytes": 9552220,
+      "largest": 238763
+    }
+  }
+}

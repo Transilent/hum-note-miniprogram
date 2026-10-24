@@ -1,0 +1,27 @@
+{
+  "runtime": "v24.19.0",
+  "platform": "win32/x64",
+  "rounds": {
+    "yin": 7,
+    "shortTranscribe": 5,
+    "thirtySecondTranscribe": 5
+  },
+  "yin600Frames8k": {
+    "baselineMs": 241.3399,
+    "currentMs": 16.7735
+  },
+  "shortTranscribe8k": {
+    "samples": 35520,
+    "baselineMs": 202.6744,
+    "currentMs": 2.4463
+  },
+  "thirtySecondTranscribe16k": {
+    "samples": 472000,
+    "seconds": 29.5,
+    "notes": 40,
+    "baselineMs": 1270.9072,
+    "currentMs": 15.7953
+  },
+  "exactFrameComparisons": 2712,
+  "caveat": "Desktop Node, synthetic audio; not phone performance."
+}

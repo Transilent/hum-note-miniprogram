@@ -1,0 +1,26 @@
+<view class="page home">
+  <view class="brand-row between"><text class="eyebrow">HUM A LITTLE. KEEP IT.</text><view class="brand-mark">♪</view></view>
+  <view class="headline">留住，<view>脑海里的那段旋律。</view></view>
+  <view class="intro">不必懂乐谱，先把灵感哼出来。</view>
+
+  <view class="record-card card {{recording ? 'is-recording' : ''}}">
+    <view class="between"><view class="pill"><view class="status-dot {{recording ? 'live' : ''}}"></view>{{recording ? '正在聆听' : processing ? '正在整理旋律' : '随时捕捉灵感'}}</view><text class="record-limit">最长 30 秒</text></view>
+    <view class="waveform {{recording ? 'wave-live' : ''}} {{processing ? 'wave-process' : ''}}"><view wx:for="{{bars}}" wx:key="index" class="wave-bar" style="height: {{item}}rpx; animation-delay: {{index * 0.07}}s;"></view></view>
+    <view class="record-time">{{recording ? elapsed : processing ? progress + '%' : '哼一段，记下来'}}</view>
+    <view class="record-help">{{recording ? '再点一次，完成录音' : processing ? '正在本机识别音高与音符' : '安静一点，旋律会更清晰'}}</view>
+    <button id="record-button" class="record-button {{recording ? 'stop-button' : ''}}" bindtap="recordTap" disabled="{{processing || starting}}" aria-label="{{recording ? '停止录音' : '开始录音'}}"><view wx:if="{{recording}}" class="stop-icon"></view><view wx:else class="mic-icon"><view class="mic-body"></view><view class="mic-base"></view></view></button>
+    <view class="record-cta">{{starting ? '准备录音…' : recording ? '完成录音' : processing ? '稍等一小会儿' : '点击开始哼唱'}}</view>
+    <view wx:if="{{recording}}" class="record-progress"><view style="width: {{recordSeconds / 30 * 100}}%;"></view></view>
+    <view class="local-hint"><view class="tiny-lock"></view>录音与识别都在本机完成</view>
+  </view>
+
+  <button id="demo-button" class="demo-card between" bindtap="openDemo" disabled="{{recording || starting || processing}}"><view class="row"><view class="demo-icon">♫</view><view class="demo-text"><view>先听听一段示例</view><view class="caption">试试试听、改音符和导出 MIDI</view></view></view><text class="arrow">↗</text></button>
+  <button id="home-compose" class="compose-entry between" bindtap="openCreation" disabled="{{recording || starting || processing}}"><view><view>从灵感，继续创作</view><view class="caption">复制、倒序、倒影，让旋律再长出一句</view></view><text>↗</text></button>
+  <view class="section-heading"><text class="section-title">我的灵感</text><text class="count">{{ideaTotal}} 段旋律</text></view>
+  <view wx:if="{{!ideaTotal}}" class="empty-card"><view class="empty-notes">♩<text>♪</text>♫</view><view class="empty-title">第一段旋律，等你哼出来</view><view class="caption">也许是散步时，也许就在这一刻。</view></view>
+  <view wx:for="{{ideas}}" wx:key="id" class="idea card" data-id="{{item.id}}" bindtap="openIdea" bindlongpress="ideaMenu"><view class="between"><view class="idea-title">{{item.title}}</view><view class="mini-melody"><view wx:for="{{item.preview}}" wx:for-item="bar" wx:key="index" style="height: {{bar.height}}rpx; width: {{bar.width}}rpx;"></view></view></view><view class="between idea-meta"><text>{{item.dateLabel}} · {{item.secondsLabel}} 秒 · {{item.noteCount}} 个音符</text><text class="idea-tag">{{item.hasDraft ? '有未完成草稿' : item.isDemo ? '示例' : '旋律'}} ↗</text></view></view>
+  <view wx:if="{{hasMore}}" class="library-more" bindtap="loadMore">继续上拉，载入更多灵感</view>
+  <view class="footer">灵感不用完整，记下来就有了开始。<view class="footer-small">单声部哼唱 · 本地保存 · MIDI 导出</view></view>
+</view>
+<view wx:if="{{privacyVisible}}" class="overlay"><view class="dialog"><view class="dialog-title">把声音留在你的设备里</view><view class="dialog-copy">哼记需要麦克风来录制你主动开始的哼唱。选择“同意并继续”后，才会继续请求麦克风权限；录音、旋律识别和灵感记录均在本机完成。</view><button class="text-button" bindtap="openPrivacy">查看《{{privacyName}}》</button><button id="privacy-agree" class="primary" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agreePrivacy">同意并继续</button><button class="text-button" bindtap="disagreePrivacy">暂不录音</button></view></view>
+

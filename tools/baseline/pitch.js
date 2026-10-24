@@ -1,0 +1,105 @@
+// YIN: difference function + cumulative mean normalization, followed by
+// parabolic lag interpolation. No service, model download, or native plugin.
+const { midiPitch, uid, round, clamp } = require('../../miniprogram/utils/music');
+
+function downsample(input, inputRate, targetRate) {
+  if (inputRate <= targetRate) return { samples: input, sampleRate: inputRate };
+  const ratio = inputRate / targetRate, output = new Float32Array(Math.floor(input.length / ratio));
+  // Area averaging also attenuates high frequencies before decimation.
+  for (let i = 0; i < output.length; i++) {
+    const begin = i * ratio, end = (i + 1) * ratio;
+    let sum = 0;
+    for (let j = Math.floor(begin); j < Math.ceil(end); j++) sum += (input[j] || 0) * Math.max(0, Math.min(end, j + 1) - Math.max(begin, j));
+    output[i] = sum / ratio;
+  }
+  return { samples: output, sampleRate: targetRate };
+}
+
+function yin(samples, offset, rate, gate, work) {
+  const size = 512, minTau = Math.max(2, Math.floor(rate / 1000)), maxTau = Math.min(180, Math.ceil(rate / 55));
+  let mean = 0, power = 0;
+  for (let i = 0; i < size; i++) mean += samples[offset + i] || 0;
+  mean /= size;
+  for (let i = 0; i < size; i++) { const x = (samples[offset + i] || 0) - mean; power += x * x; }
+  const rms = Math.sqrt(power / size);
+  if (rms < gate) return { midi: null, confidence: 0, rms };
+  work[0] = 1;
+  let running = 0;
+  for (let tau = 1; tau <= maxTau; tau++) {
+    let sum = 0;
+    for (let i = 0; i < size; i++) { const d = (samples[offset + i] || 0) - (samples[offset + i + tau] || 0); sum += d * d; }
+    running += sum; work[tau] = running ? sum * tau / running : 1;
+  }
+  let best = -1;
+  for (let tau = minTau; tau < maxTau; tau++) {
+    if (work[tau] < .16) { while (tau + 1 < maxTau && work[tau + 1] < work[tau]) tau++; best = tau; break; }
+  }
+  if (best < 0) {
+    for (let tau = minTau; tau < maxTau; tau++) if (best < 0 || work[tau] < work[best]) best = tau;
+    if (work[best] > .28) return { midi: null, confidence: 0, rms };
+  }
+  const left = work[best - 1], mid = work[best], right = work[best + 1];
+  const denominator = 2 * (2 * mid - right - left);
+  const period = best + (denominator ? (right - left) / denominator : 0);
+  const hz = rate / period;
+  if (hz < 55 || hz > 1000) return { midi: null, confidence: 0, rms };
+  return { midi: midiPitch(hz), confidence: clamp(1 - mid, 0, 1), rms };
+}
+
+function framesToNotes(frames, hopSeconds, bpm) {
+  const clean = frames.map((f, i) => {
+    if (f.midi == null) return null;
+    // Three-frame median removes single-frame octave and semitone glitches.
+    const group = frames.slice(Math.max(0, i - 1), i + 2).filter(v => v.midi != null).map(v => v.midi).sort((a, b) => a - b);
+    return Math.round(group[Math.floor(group.length / 2)]);
+  });
+  // Bridge at most 30 ms of dropout within a sustained note, never a longer rest.
+  for (let i = 1; i < clean.length - 1; i++) if (clean[i] == null && clean[i - 1] != null && clean[i - 1] === clean[i + 1]) clean[i] = clean[i - 1];
+  const groups = [];
+  let active = null;
+  for (let i = 0; i <= clean.length; i++) {
+    const pitch = i < clean.length ? clean[i] : null;
+    if (active && pitch !== active.midi) { active.end = i; groups.push(active); active = null; }
+    if (pitch != null && !active) active = { midi: pitch, begin: i, end: i + 1 };
+  }
+  const beatScale = bpm / 60;
+  return groups.filter(g => (g.end - g.begin) * hopSeconds >= .085).map(g => {
+    const region = frames.slice(g.begin, g.end);
+    const confidence = region.reduce((n, f) => n + f.confidence, 0) / region.length;
+    const rms = region.reduce((n, f) => n + f.rms, 0) / region.length;
+    return { id: uid(), midi: g.midi, start: round(g.begin * hopSeconds * beatScale),
+      duration: round(Math.max(.125, (g.end - g.begin) * hopSeconds * beatScale)),
+      velocity: Math.round(clamp(65 + rms * 160, 60, 110)), confidence: round(confidence) };
+  });
+}
+
+async function transcribe(input, sampleRate, bpm, onProgress, isCancelled) {
+  if (!input || input.length < sampleRate * .2) throw new Error('录音太短了，请至少哼唱 1 秒。');
+  if (sampleRate < 4000 || sampleRate > 192000) throw new Error('录音采样率不受支持。');
+  const down = downsample(input.subarray(0, Math.floor(sampleRate * 30.2)), sampleRate, 8000);
+  const data = down.samples, rate = down.sampleRate, hop = Math.round(rate * .015), frameCount = Math.max(0, Math.floor((data.length - 700) / hop));
+  let maxRms = 0;
+  for (let i = 0; i + 512 < data.length; i += 512) {
+    let power = 0, mean = 0;
+    for (let j = 0; j < 512; j++) mean += data[i + j];
+    mean /= 512;
+    for (let j = 0; j < 512; j++) power += Math.pow(data[i + j] - mean, 2);
+    maxRms = Math.max(maxRms, Math.sqrt(power / 512));
+  }
+  const gate = Math.max(.003, maxRms * .07), frames = [], work = new Float32Array(185);
+  for (let index = 0; index < frameCount; index++) {
+    if (isCancelled && isCancelled()) throw new Error('已取消识别');
+    frames.push(yin(data, index * hop, rate, gate, work));
+    if (index % 24 === 0) {
+      if (onProgress) onProgress(Math.round(index / frameCount * 100));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+  const notes = framesToNotes(frames, hop / rate, bpm);
+  if (!notes.length) throw new Error('没有找到稳定的旋律。请靠近麦克风，在安静的环境里清楚地哼一遍。');
+  if (onProgress) onProgress(100);
+  const voiced = frames.filter(f => f.midi != null);
+  return { notes, duration: input.length / sampleRate, confidence: voiced.reduce((sum, f) => sum + f.confidence, 0) / Math.max(1, voiced.length) };
+}
+
+module.exports = { transcribe, yin, downsample, framesToNotes };

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "cached_postprocess_recordings": 1542,
+  "full_audio_train_stems": [
+    "F01_0055_0001_1_D",
+    "M01_0055_0001_2_D",
+    "M03_0039_0001_1_DD",
+    "M03_0037_0001_1_DDD"
+  ]
+}

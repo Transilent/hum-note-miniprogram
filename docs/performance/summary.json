@@ -1,0 +1,48 @@
+{
+  "environment": "Node v24.19.0, Windows x64",
+  "rounds": 5,
+  "fixture": {
+    "ideas": 100,
+    "notesPerIdea": 500,
+    "moves": 40
+  },
+  "metrics": {
+    "home_sync_source_bytes": {
+      "before": 65918,
+      "after": 31566
+    },
+    "home_sync_module_count": {
+      "before": 10,
+      "after": 3
+    },
+    "home_first_transfer_bytes": {
+      "before": 4821481,
+      "after": 12802
+    },
+    "home_cached_start_model_ms": {
+      "before": 75.2995,
+      "after": 0.7476000000000056
+    },
+    "home_unchanged_return_bytes": {
+      "before": 4821481,
+      "after": 0
+    },
+    "editor_first_transfer_bytes": {
+      "before": 238774,
+      "after": 130112
+    },
+    "editor_40_moves_transfer_bytes": {
+      "before": 9552220,
+      "after": 23295
+    },
+    "editor_drag_median_logic_ms": {
+      "before": 2.473000000000013,
+      "after": 0.38740000000001373
+    }
+  },
+  "limits": [
+    "Exact serialized payload; JS model times include mock serialization.",
+    "Not phone cold launch, FPS, recognition accuracy or a guarantee on all recordings.",
+    "First legacy startup rebuilds summaries once; cached-start model time measures a fresh page using the existing index."
+  ]
+}

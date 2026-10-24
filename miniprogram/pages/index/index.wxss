@@ -1,0 +1,52 @@
+.brand-row { margin: 8rpx 0 35rpx; }
+.brand-mark { width: 48rpx; height: 48rpx; border: 1rpx solid #cbd3c6; color: #4d7153; border-radius: 50%; text-align: center; line-height: 48rpx; font-size: 32rpx; }
+.headline { font-size: 55rpx; font-weight: 600; line-height: 1.4; letter-spacing: -2rpx; }
+.intro { color: #888e83; font-size: 26rpx; margin-top: 17rpx; margin-bottom: 36rpx; }
+.record-card { padding: 28rpx 30rpx 25rpx; overflow: hidden; position: relative; background: #fffefb; }
+.status-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #76936e; margin-right: 10rpx; }
+.status-dot.live { background: #c4735b; animation: pulse 1s infinite; }
+.record-limit { color: #a3a69a; font-size: 21rpx; }
+.waveform { height: 127rpx; display: flex; align-items: center; justify-content: center; margin: 21rpx 0 7rpx; }
+.wave-bar { width: 7rpx; background: #bacbb2; border-radius: 10rpx; margin: 0 5rpx; opacity: .67; }
+.wave-live .wave-bar { background: #8d9e72; animation: wave .65s infinite alternate ease-in-out; }
+.wave-process .wave-bar { animation: wave 1.2s infinite alternate; }
+.record-time { font-size: 31rpx; font-weight: 500; text-align: center; letter-spacing: 1rpx; }
+.is-recording .record-time { font-size: 40rpx; font-variant-numeric: tabular-nums; }
+.record-help { text-align: center; color: #a0a393; font-size: 23rpx; margin-top: 10rpx; }
+.record-button { width: 117rpx; height: 117rpx; margin: 27rpx auto 15rpx; border-radius: 50%; background: #365e48; display: flex; justify-content: center; align-items: center; box-shadow: 0 8rpx 0 #e5eadd; }
+.stop-button { background: #b7765d; box-shadow: 0 8rpx 0 #f1e8df; }
+.stop-icon { width: 31rpx; height: 31rpx; background: #fff; border-radius: 6rpx; }
+.mic-icon { position: relative; width: 43rpx; height: 51rpx; }
+.mic-body { position: absolute; top: 0; left: 13rpx; width: 18rpx; height: 31rpx; border: 3rpx solid #fff; border-radius: 15rpx; }
+.mic-base { position: absolute; left: 5rpx; top: 16rpx; width: 34rpx; height: 25rpx; border: 3rpx solid #fff; border-top: 0; border-radius: 0 0 20rpx 20rpx; }
+.mic-icon::after { content: ''; position: absolute; bottom: 0; left: 20rpx; width: 3rpx; height: 12rpx; background: #fff; }
+.record-cta { text-align: center; font-size: 24rpx; color: #53694f; margin-bottom: 25rpx; }
+.local-hint { text-align: center; font-size: 20rpx; color: #a1a797; border-top: 1rpx solid #f0f0e8; padding-top: 23rpx; display: flex; align-items: center; justify-content: center; }
+.tiny-lock { width: 13rpx; height: 13rpx; border: 1.5rpx solid #a1a797; border-radius: 3rpx; margin-right: 10rpx; position: relative; }
+.tiny-lock::before { content: ''; position: absolute; width: 7rpx; height: 7rpx; border: 1.5rpx solid #a1a797; border-bottom: 0; border-radius: 5rpx 5rpx 0 0; top: -8rpx; left: 1rpx; }
+.record-progress { height: 4rpx; margin: -10rpx 0 18rpx; background: #eee8df; border-radius: 5rpx; overflow: hidden; }
+.record-progress view { height: 100%; background: #b7765d; }
+.demo-card { background: #edeee4; padding: 25rpx 28rpx; margin-top: 23rpx; border: 1rpx solid #e5e7da; text-align: left; border-radius: 23rpx; }
+.demo-icon { width: 58rpx; height: 58rpx; border-radius: 17rpx; background: #dde4d1; text-align: center; line-height: 58rpx; font-size: 35rpx; color: #70845e; margin-right: 20rpx; }
+.demo-text { font-size: 27rpx; }
+.demo-text .caption { font-size: 21rpx; margin-top: 5rpx; }
+.arrow { font-size: 36rpx; color: #83916b; }
+.count { color: #949b8b; font-size: 23rpx; }
+.empty-card { border: 2rpx dashed #dedfd3; border-radius: 25rpx; padding: 34rpx 20rpx; text-align: center; }
+.empty-notes { font-size: 42rpx; color: #bbc8aa; letter-spacing: 19rpx; margin-bottom: 14rpx; }
+.empty-notes text { position: relative; top: -10rpx; }
+.empty-title { font-size: 26rpx; color: #858e79; margin-bottom: 7rpx; }
+.idea { padding: 27rpx 28rpx 23rpx; margin-bottom: 18rpx; }
+.idea-title { font-weight: 500; font-size: 29rpx; max-width: 360rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-melody { height: 58rpx; max-width: 180rpx; display: flex; align-items: center; overflow: hidden; }
+.mini-melody view { background: #bdc9ad; border-radius: 4rpx; margin-left: 4rpx; flex-shrink: 0; }
+.idea-meta { color: #969d8f; font-size: 21rpx; margin-top: 13rpx; }
+.idea-tag { color: #6a8261; }
+.library-more { margin: 18rpx 0 4rpx; padding: 18rpx; text-align: center; color: #7d8b72; font-size: 22rpx; letter-spacing: 1rpx; }
+.footer { margin-top: 43rpx; text-align: center; color: #a1a795; font-size: 21rpx; line-height: 1.8; }
+.footer-small { font-size: 19rpx; color: #b5b9ab; margin-top: 8rpx; }
+@keyframes wave { from { transform: scaleY(.35); opacity: .4; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes pulse { 50% { opacity: .4; } }
+.compose-entry { width: 100%; text-align: left; padding: 25rpx 28rpx; margin-top: 18rpx; background: #e9eee2; border: 1rpx solid #dce5d2; color: #4b6941; border-radius: 23rpx; font-size: 28rpx; }
+.compose-entry .caption { font-size: 21rpx; color: #8c9a7e; margin-top: 7rpx; }
+.compose-entry > text { font-size: 35rpx; margin-left: 12rpx; }

@@ -1,0 +1,57 @@
+.compose-page { padding-top: 16rpx; }
+.compose-top { position: sticky; top: 0; z-index: 10; background: #f7f5f0; padding: 10rpx 0 20rpx; margin-bottom: 25rpx; }
+.page-tabs { display: flex; align-items: center; background: #eceee5; border-radius: 17rpx; padding: 5rpx; }
+.page-tabs button, .page-tabs view { padding: 13rpx 21rpx; font-size: 24rpx; color: #7e8975; background: transparent; border-radius: 13rpx; }
+.page-tabs .tab-active { background: #fffefb; color: #365e48; font-weight: 600; }
+.bpm-badge { color: #365e48; background: #eaf0e2; padding: 12rpx 17rpx; border-radius: 13rpx; font-size: 28rpx; font-weight: 600; }
+.bpm-badge text { font-size: 18rpx; color: #8b967b; font-weight: 400; }
+.compose-page .eyebrow { font-size: 18rpx; letter-spacing: 3rpx; }
+.compose-title { font-size: 43rpx; font-weight: 600; margin-top: 20rpx; }
+.intro { margin: 12rpx 0 29rpx; }
+.source-card { padding: 25rpx 27rpx; }
+.source-title { font-size: 30rpx; font-weight: 500; margin: 7rpx 0; max-width: 530rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.source-card .caption { font-size: 21rpx; }
+.picker-arrow { color: #7f9470; font-size: 37rpx; }
+.preset-grid { display: flex; flex-wrap: wrap; justify-content: space-between; }
+.preset-card { text-align: left; background: #fffefb; border: 2rpx solid #e8e8dd; padding: 23rpx 23rpx; width: 48.5%; margin-bottom: 17rpx; border-radius: 20rpx; }
+.preset-title { font-size: 29rpx; color: #586b50; }
+.preset-subtitle { font-size: 21rpx; color: #95a187; margin-top: 6rpx; }
+.preset-card.preset-active { background: #e6eedf; border-color: #9fb990; }
+.preset-active .preset-title { color: #365e48; font-weight: 600; }
+.preset-explanation { padding: 23rpx 25rpx; background: #f0f2e8; margin-top: 1rpx; }
+.explanation-title { font-size: 25rpx; color: #5d7751; margin-bottom: 10rpx; }
+.preset-explanation .caption { font-size: 23rpx; }
+.parameter-card { padding: 23rpx; }
+.mode-buttons { display: flex; flex-direction: column; gap: 13rpx; }
+.mode-buttons button { width: 100%; background: #f0f2e9; color: #879579; border: 1rpx solid transparent; font-size: 26rpx; padding: 19rpx 10rpx; border-radius: 14rpx; }
+.mode-buttons .mode-active { color: #365e48; background: #e3ecda; border-color: #b8caa8; }
+.parameter-block { margin-top: 23rpx; padding-top: 20rpx; border-top: 1rpx solid #eceee3; }
+.parameter-label { font-size: 24rpx; color: #7d8c70; margin-bottom: 16rpx; }
+.choices { display: flex; gap: 12rpx; flex-wrap: wrap; }
+.choices button { min-width: 92rpx; font-size: 24rpx; padding: 13rpx 17rpx; color: #879577; background: #f0f2e9; border: 1rpx solid #e4e9da; border-radius: 12rpx; }
+.choices .choice-active { color: #365e48; border-color: #9bb28b; background: #e6eedf; }
+.repeat-label { margin-top: 22rpx; }
+.parameter-note { font-size: 20rpx; line-height: 1.8; color: #97a187; margin-top: 16rpx; }
+.tone-picker { color: #6a825d; font-size: 23rpx; }
+.compare-card { padding: 24rpx 26rpx 16rpx; }
+.compare-title { font-size: 28rpx; font-weight: 500; color: #536b49; }
+.compare-card .caption { font-size: 21rpx; margin-top: 5rpx; }
+.listen-button { color: #647d55; background: #edf1e5; padding: 15rpx 18rpx; font-size: 22rpx; border-radius: 13rpx; }
+.result-listen { color: #fffefb; background: #365e48; }
+.contour { width: 100%; height: 106rpx; position: relative; margin-top: 19rpx; background: repeating-linear-gradient(to bottom, transparent, transparent 25rpx, #eff0e6 26rpx); overflow: hidden; }
+.contour-note { position: absolute; height: 10rpx; background: #739762; border-radius: 4rpx; }
+.original-note { background: #b0c29c; }
+.compare-arrow { text-align: center; font-size: 22rpx; color: #9ba78c; padding: 17rpx 0; }
+.result-card { border-color: #c6d6ba; }
+.join-line { position: absolute; top: 0; height: 100%; border-left: 2rpx dashed #c5b18a; }
+.chart-caption { font-size: 20rpx; line-height: 1.8; text-align: center; color: #a0a78f; margin: 20rpx 0 30rpx; }
+.composition-error { color: #a36346; background: #faeee3; border: 1rpx solid #e8cbb8; padding: 24rpx; border-radius: 18rpx; margin-top: 20rpx; line-height: 1.8; font-size: 25rpx; }
+.composition-error .text-button { text-align: left; padding-left: 0; color: #a36346; }
+.apply-button, .save-new-button { width: 100%; margin-top: 17rpx; font-size: 28rpx; }
+.keep-note { color: #9ca68c; font-size: 21rpx; text-align: center; margin-top: 21rpx; line-height: 1.8; }
+.theory-note { color: #a2ab94; font-size: 20rpx; text-align: center; line-height: 1.9; margin-top: 37rpx; }
+.play-status { font-size: 20rpx; text-align: right; color: #7d956c; padding-top: 9rpx; }
+.empty-compose { padding: 45rpx 30rpx; text-align: center; margin-top: 40rpx; }
+.empty-symbol { font-size: 88rpx; color: #a2b98e; margin-bottom: 15rpx; }
+.empty-compose .caption { margin: 20rpx 0 30rpx; }
+.empty-compose button { width: 100%; }

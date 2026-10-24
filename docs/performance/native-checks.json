@@ -1,0 +1,95 @@
+{
+  "environment": "WeChat DevTools 2.02.2608080, base library 3.7.12; simulator, not physical phone",
+  "library": {
+    "created": 25,
+    "notesPerIdea": 500,
+    "initialShown": 20,
+    "afterLoadMore": 25,
+    "unchangedRefreshPreserves25": true,
+    "rawNotesSentToHome": false
+  },
+  "editor": {
+    "notes": 500,
+    "fortyMovesAndGestureBoundaries": {
+      "setDataCalls": 83,
+      "utf16Characters": 158482,
+      "largestPatchCharacters": 133894
+    },
+    "modelAndViewPitch": 72,
+    "selectedCount": 1,
+    "audioCreatedBeforePlayback": false
+  },
+  "preview": {
+    "notes": 500,
+    "firstPrepareMs": 467,
+    "repeatPrepareMs": 28,
+    "reusedFile": true,
+    "repeatAudioTime": 0.528,
+    "playheadRpx": 134.5
+  },
+  "cancelDuringPreparation": {
+    "completedMs": 89,
+    "playing": false,
+    "requested": false,
+    "previousCachePreserved": true
+  },
+  "syntheticRecordingPipeline": {
+    "seconds": 30,
+    "decodeRecognizeSaveMs": 642,
+    "notes": 40,
+    "pitches": [
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69,
+      60,
+      64,
+      67,
+      69
+    ],
+    "normalizedSourceSaved": true,
+    "microphoneUsed": false
+  },
+  "midi": {
+    "bytes": 404,
+    "header": "MThd",
+    "notes": 40,
+    "bpm": 100
+  },
+  "cleanup": {
+    "ownedIdeasRemoved": 26,
+    "userIdeasRemaining": 0
+  }
+}

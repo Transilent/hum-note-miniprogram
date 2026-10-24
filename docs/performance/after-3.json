@@ -1,0 +1,68 @@
+{
+  "runtime": "v24.19.0",
+  "platform": "win32/x64",
+  "fixture": {
+    "ideas": 100,
+    "notesPerIdea": 500,
+    "moves": 40
+  },
+  "caveat": "Node mocks measure model work and exact bridge payload, not phone cold launch or frame rate.",
+  "homeModules": {
+    "ms": 2.9818,
+    "files": [
+      "pages/index/index.js",
+      "utils/music.js",
+      "utils/storage.js"
+    ],
+    "sourceBytes": 31566
+  },
+  "editorAdditionalModules": {
+    "ms": 2.0866000000000042,
+    "files": [
+      "pages/editor/editor.js",
+      "utils/view-patch.js"
+    ],
+    "sourceBytes": 20928
+  },
+  "homepage": {
+    "firstModelMs": 39.4042,
+    "firstTransfer": {
+      "calls": 1,
+      "bytes": 12802,
+      "largest": 12802
+    },
+    "shown": 20,
+    "unchangedReturn": {
+      "ms": 0.8265999999999991,
+      "calls": 0,
+      "bytes": 0,
+      "largest": 0,
+      "storageKeys": [
+        "humnote.idea-summaries.v1.dirty",
+        "humnote.idea-summaries.v1"
+      ]
+    },
+    "cachedStart": {
+      "ms": 0.7476000000000056,
+      "calls": 1,
+      "bytes": 12802,
+      "largest": 12802,
+      "shown": 20
+    }
+  },
+  "editing": {
+    "firstModelMs": 31.700000000000003,
+    "firstTransfer": {
+      "calls": 2,
+      "bytes": 130112,
+      "largest": 130093
+    },
+    "drag40": {
+      "medianLogicMs": 0.37829999999999586,
+      "p95LogicMs": 1.0473999999999961,
+      "calls": 80,
+      "bytes": 23295,
+      "largest": 554
+    }
+  }
+}

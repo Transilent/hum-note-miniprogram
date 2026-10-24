@@ -1,0 +1,11 @@
+{
+  "name": "hum-note-miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "description": "哼记：本地哼唱识别、音符编辑、试听与 MIDI 导出",
+  "scripts": {
+    "test": "node tests/run.js && node tests/humtrans-metrics.cjs && node tests/record-permission.js && node tests/library-performance.js && node tests/editor-performance.cjs && node tests/audio-performance.cjs && node tests/pitch-performance.cjs && node tests/composition.cjs && node tests/audio-export.cjs && node tests/creation-ui.cjs",
+    "benchmark": "node tools/performance-benchmark.cjs && node tests/pitch-performance.cjs --benchmark"
+  },
+  "license": "UNLICENSED"
+}

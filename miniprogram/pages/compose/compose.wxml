@@ -1,0 +1,35 @@
+<view class="page compose-page">
+  <view class="compose-top between"><view class="page-tabs"><button id="back-editor" bindtap="backToEditor">音符编辑</button><view class="tab-active">旋律创作</view></view><view wx:if="{{hasSource}}" class="bpm-badge">{{bpm}} <text>BPM</text></view></view>
+  <view class="eyebrow">GIVE YOUR MELODY A NEXT LINE.</view>
+  <view class="compose-title">让旋律，再长出一句</view>
+  <view class="caption intro">从一小段哼唱出发，试试重复、倒序和变化。</view>
+
+  <view wx:if="{{!hasSource}}" class="card empty-compose"><view class="empty-symbol">♫</view><view class="section-title">先有一段旋律，就能开始</view><view class="caption">录一段哼唱，或用示例试试这些创作手法。</view><button id="compose-demo" class="primary" bindtap="useDemo">用示例开始创作</button></view>
+  <block wx:else>
+    <picker id="source-picker" range="{{sources}}" range-key="title" value="{{sourceIndex}}" bindchange="chooseSource" disabled="{{saving || applying}}"><view class="source-card card between"><view><view class="caption">这次从哪一段开始</view><view class="source-title">{{sourceTitle}}</view><view class="caption">{{sourceCount}} 个音符 · {{sourceDuration}} 秒</view></view><text class="picker-arrow">⌄</text></view></picker>
+
+    <view class="section-heading"><text class="section-title">选一种发展方式</text><text class="caption">先试听，再决定</text></view>
+    <view class="preset-grid"><button wx:for="{{presets}}" wx:key="id" id="preset-{{item.id}}" class="preset-card {{presetId === item.id ? 'preset-active' : ''}}" data-id="{{item.id}}" bindtap="choosePreset" disabled="{{saving || applying}}"><view class="preset-title">{{item.title}}</view><view class="preset-subtitle">{{item.subtitle}}</view></button></view>
+    <view class="preset-explanation card"><view class="explanation-title">{{activePreset.title}} · {{activePreset.subtitle}}</view><view class="caption">{{activePreset.tip}}</view><view wx:if="{{presetId === 'inversion' || presetId === 'retrograde-inversion'}}" class="parameter-note">以首音 {{anchorName}} 为轴，按半音精确镜像；不自动改成大调或小调。</view><view wx:if="{{presetId === 'augment' || presetId === 'diminish'}}" class="parameter-note">BPM 保持 {{bpm}}，只改变这份旋律的拍点和时值。</view></view>
+
+    <view class="section-heading"><text class="section-title">怎样放进旋律里</text></view>
+    <view class="card parameter-card"><view class="mode-buttons"><button id="mode-append" data-mode="append" bindtap="chooseMode" class="{{mode === 'append' ? 'mode-active' : ''}}">复制变化后接在末尾</button><button id="mode-replace" data-mode="replace" bindtap="chooseMode" class="{{mode === 'replace' ? 'mode-active' : ''}}">只保留变化后的整段</button></view>
+      <view wx:if="{{mode === 'append'}}" class="parameter-block"><view class="parameter-label">两段之间留白</view><view class="choices"><button wx:for="{{gaps}}" wx:key="*this" data-key="gap" data-value="{{item}}" bindtap="chooseParameter" class="{{gap === item ? 'choice-active' : ''}}">{{item}} 拍</button></view></view>
+      <view wx:if="{{presetId === 'transpose'}}" class="parameter-block"><view class="parameter-label">副本整体移动几个半音</view><view class="choices"><button wx:for="{{transpositions}}" wx:key="*this" data-key="transpose" data-value="{{item}}" bindtap="chooseParameter" class="{{transpose === item ? 'choice-active' : ''}}">{{item > 0 ? '+' : ''}}{{item}}</button></view></view>
+      <view wx:if="{{presetId === 'fragment'}}" class="parameter-block"><view class="parameter-label">取开头几个音符</view><view class="choices"><button wx:for="{{fragmentSizes}}" wx:key="*this" data-key="fragmentSize" data-value="{{item}}" bindtap="chooseParameter" class="{{fragmentSize === item ? 'choice-active' : ''}}">{{item}} 个</button></view><view class="parameter-label repeat-label">动机连续重复</view><view class="choices"><button wx:for="{{repeatCounts}}" wx:key="*this" data-key="repeatCount" data-value="{{item}}" bindtap="chooseParameter" class="{{repeatCount === item ? 'choice-active' : ''}}">{{item}} 次</button></view></view>
+      <view class="parameter-note">以首音到末音作为乐句，保留中间休止。这里的选择只生成预览。</view>
+    </view>
+
+    <view class="section-heading"><text class="section-title">听听前后的变化</text><picker range="{{toneNames}}" value="{{toneIndex}}" bindchange="changeTone"><text class="tone-picker">{{toneNames[toneIndex]}} ⌄</text></picker></view>
+    <view class="compare-card card"><view class="between"><view><view class="compare-title">原旋律</view><view class="caption">{{sourceCount}} 个音符 · {{sourceDuration}} 秒</view></view><button id="preview-source" class="listen-button" data-mode="source" bindtap="preview">{{playing && playback === 'source' ? '■ 停止' : '▶ 听原旋律'}}</button></view><view class="contour"><view wx:for="{{sourceBars}}" wx:key="index" class="contour-note original-note" style="left: {{item.x}}rpx; top: {{item.y}}rpx; width: {{item.width}}rpx;"></view></view></view>
+    <view class="compare-arrow">↓ {{mode === 'append' ? '原句 + 变化后的新一句' : '变化后的整段'}}</view>
+    <view class="compare-card card result-card"><view class="between"><view><view class="compare-title">创作结果</view><view class="caption">{{error ? '调整预设后可试听' : resultCount + ' 个音符 · ' + resultDuration + ' 秒'}}</view></view><button id="preview-result" class="listen-button result-listen" data-mode="result" bindtap="preview" disabled="{{!!error}}">{{playing && playback === 'result' ? '■ 停止' : '▶ 听创作结果'}}</button></view><view wx:if="{{!error}}" class="contour"><view wx:for="{{resultBars}}" wx:key="index" class="contour-note" style="left: {{item.x}}rpx; top: {{item.y}}rpx; width: {{item.width}}rpx;"></view><view wx:if="{{joinX > 0}}" class="join-line" style="left: {{joinX}}rpx;"></view></view><view wx:if="{{playing}}" class="play-status">{{playback === 'source' ? '原旋律' : '创作结果'}} · {{playTime}}</view></view>
+    <view wx:if="{{error}}" id="composition-error" class="composition-error">{{error}}<button class="text-button" bindtap="backToEditor">回音符编辑调整 ↗</button></view>
+    <view class="chart-caption">走势为缩略示意，试听包含全部音符。具体音高与时值可回编辑页调整。</view>
+
+    <button wx:if="{{canApplyToSource}}" id="apply-composition" class="primary apply-button" bindtap="applyToSource" disabled="{{!!error || saving || applying}}" loading="{{applying}}">应用到当前旋律</button>
+    <button id="save-composition" class="{{canApplyToSource ? 'secondary' : 'primary'}} save-new-button" bindtap="saveAsNew" disabled="{{!!error || saving || applying}}" loading="{{saving}}">另存为新灵感</button>
+    <view class="keep-note">{{canApplyToSource ? '应用后可在编辑页撤销；另存会保留原灵感。' : '另存会保留原灵感，接着可以编辑和分享。'}}</view>
+    <view class="theory-note">逆行改变先后顺序，倒影改变音高走向。<view>这些预设是创作起点，先听听，再留下你喜欢的版本。</view></view>
+  </block>
+</view>

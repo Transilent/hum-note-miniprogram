@@ -1,0 +1,25 @@
+page { background: #f7f5f0; color: #262c29; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 28rpx; }
+view, button, input, text { box-sizing: border-box; }
+button { margin: 0; padding: 0; border-radius: 18rpx; font-size: 28rpx; line-height: 1.5; font-weight: 500; }
+button::after { border: 0; }
+button[disabled] { opacity: .4; }
+.page { padding: 28rpx 36rpx 64rpx; padding-bottom: calc(64rpx + env(safe-area-inset-bottom)); }
+.eyebrow { font-size: 20rpx; letter-spacing: 5rpx; color: #7c8981; font-weight: 600; }
+.muted { color: #8a9088; }
+.caption { font-size: 23rpx; color: #8a9088; line-height: 1.7; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; margin: 40rpx 0 22rpx; }
+.section-title { font-size: 31rpx; font-weight: 600; }
+.text-button { background: transparent; font-size: 24rpx; color: #637868; padding: 8rpx 0 8rpx 18rpx; }
+.primary { background: #365e48; color: #fff; padding: 23rpx 28rpx; }
+.secondary { background: #eaece4; color: #365e48; padding: 23rpx 28rpx; }
+.card { background: #fffefb; border: 1rpx solid #e9e7df; border-radius: 28rpx; }
+.row { display: flex; align-items: center; }
+.between { display: flex; align-items: center; justify-content: space-between; }
+.pill { display: inline-flex; align-items: center; background: #e9eee5; color: #55715a; padding: 7rpx 16rpx; border-radius: 30rpx; font-size: 21rpx; }
+.overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(24,35,28,.38); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 42rpx; }
+.dialog { padding: 42rpx 36rpx 32rpx; background: #fffefb; width: 100%; border-radius: 30rpx; }
+.dialog-title { font-size: 34rpx; font-weight: 600; margin-bottom: 24rpx; }
+.dialog-copy { font-size: 26rpx; color: #727a70; line-height: 1.9; margin-bottom: 26rpx; }
+.dialog .primary { width: 100%; margin-top: 20rpx; }
+.dialog .text-button { width: 100%; margin-top: 12rpx; padding: 14rpx; }
+.empty { padding: 38rpx 30rpx; text-align: center; color: #858c82; font-size: 25rpx; line-height: 1.9; }
