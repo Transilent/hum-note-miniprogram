@@ -7,5 +7,5 @@
     "test": "node tests/run.js && node tests/humtrans-metrics.cjs && node tests/record-permission.js && node tests/library-performance.js && node tests/editor-performance.cjs && node tests/audio-performance.cjs && node tests/pitch-performance.cjs && node tests/composition.cjs && node tests/audio-export.cjs && node tests/creation-ui.cjs",
     "benchmark": "node tools/performance-benchmark.cjs && node tests/pitch-performance.cjs --benchmark"
   },
-  "license": "UNLICENSED"
+  "license": "Apache-2.0"
 }

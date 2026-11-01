@@ -6,7 +6,7 @@
 
 ## 直接打开
 
-工程已经通过本机微信开发者工具的官方命令行导入，并使用你确认的 AppID `wx7adc60ff4f038406` 做本地测试。尚未向微信平台上传或发布小程序；GitHub 仓库用于源码管理。
+工程已通过微信开发者工具的本地编译和模拟器验证。导入后，请把 `project.config.json` 中的 `appid` 替换为你自己的微信小程序 AppID，并使用有开发者权限的微信账号测试。尚未向微信平台上传或发布小程序。
 
 仓库：[Transilent/hum-note-miniprogram](https://github.com/Transilent/hum-note-miniprogram)。本机私有开发者工具配置、临时文件、头像设计原图和 HumTrans 原始数据集不在仓库中；项目功能说明与界面截图均已保留。
 
@@ -102,3 +102,11 @@ hum-midi-miniprogram/
 ```
 
 微信 API 参数核对来源：[微信官方 API 类型定义](https://github.com/wechat-miniprogram/api-typings)、[录音 API](https://developers.weixin.qq.com/miniprogram/dev/api/media/recorder/RecorderManager.start.html)、[文件转发 API](https://developers.weixin.qq.com/miniprogram/dev/api/share/wx.shareFileMessage.html)。
+
+## 许可证
+
+Copyright 2026 Transilent。
+
+本项目采用 **Apache License 2.0**，完整英文条款见 [LICENSE](LICENSE)，项目版权声明见 [NOTICE](NOTICE)。该许可证允许商业使用、修改和再分发；分发时需附带许可证、保留相关版权和归属声明，并在修改过的文件中明确标注修改。软件按现状提供，不作保证。
+
+本仓库不包含 HumTrans 原始数据集、用户录音或私人开发者工具配置。外部数据集及其他第三方材料的权利由其各自的许可决定，不因本项目采用 Apache 2.0 而变更。
