@@ -48,7 +48,11 @@ home.page.onUnload();
 const warm = home.create(), warmStart = performance.now(); warm.onLoad(); warm.onShow();
 homepage.cachedStart = { ms: performance.now() - warmStart, ...summarize(warm.updates), shown: warm.data.ideas.length }; warm.onUnload();
 const editor = loadPage('editor'); const tEditor = performance.now(); editor.page.onLoad({ id: library[0].id });
-const editing = { firstModelMs: performance.now() - tEditor, firstTransfer: summarize(editor.page.updates) };
+const editing = { firstModelMs: performance.now() - tEditor, firstTransfer: summarize(editor.page.updates),
+  renderedNoteNodes: {
+    roll: Array.isArray(editor.page.data.rollNotes) ? editor.page.data.rollNotes.length : editor.page.data.notes.length,
+    list: Array.isArray(editor.page.data.listNotes) ? editor.page.data.listNotes.length : editor.page.data.notes.length
+  } };
 editor.page.updates.length = 0;
 editor.page.onNoteTouchStart({ currentTarget: { dataset: { id: 'perf-note-250' } }, touches: [{ clientX: 100, clientY: 100 }] });
 editor.page.updates.length = 0; const times = [];

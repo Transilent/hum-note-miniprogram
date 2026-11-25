@@ -7,11 +7,12 @@ function viewPatch(previous, next) {
   Object.keys(next).forEach(key => {
     const before = previous && previous[key], after = next[key];
     if (before === after) return;
-    if (key === 'notes' && Array.isArray(before) && before.length === after.length) {
+    if ((key === 'notes' || key === 'rollNotes' || key === 'listNotes') &&
+        Array.isArray(before) && Array.isArray(after) && before.length === after.length) {
       const changed = [];
       for (let i = 0; i < after.length; i++) if (!equalItem(before[i], after[i])) changed.push(i);
       if (changed.length <= after.length / 2) {
-        changed.forEach(i => { patch['notes[' + i + ']'] = after[i]; });
+        changed.forEach(i => { patch[key + '[' + i + ']'] = after[i]; });
         return;
       }
     } else if (key === 'selected' && equalItem(before, after)) return;

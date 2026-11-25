@@ -1,10 +1,12 @@
-const { normalizeNotes, assertNoOverlaps, clamp } = require('./music');
+const { normalizeNotes, assertNoOverlaps, clamp, uid } = require('./music');
 const KEY = 'humnote.ideas.v1';
 const DRAFT_KEY = 'humnote.drafts.v1';
+const RECORDINGS_KEY = 'humnote.pending-recordings.v1';
 const SUMMARY_KEY = 'humnote.idea-summaries.v1';
 const SUMMARY_DIRTY_KEY = 'humnote.idea-summaries.v1.dirty';
 const SUMMARY_SCHEMA = 1;
 const PREVIEW_NOTES = 18;
+const THUMBNAIL_BARS = 8;
 const ROOT = () => wx.env.USER_DATA_PATH + '/humnote';
 
 function initDir() { try { wx.getFileSystemManager().mkdirSync(ROOT(), true); } catch (_) {} }
@@ -14,8 +16,16 @@ function listDrafts() { const value = wx.getStorageSync(DRAFT_KEY); return Array
 function getDraft(id) { return listDrafts().find(idea => idea.id === id); }
 
 function ideaNotes(idea) { return idea && Array.isArray(idea.notes) ? idea.notes : []; }
+function canRestoreDraft(idea, draft) {
+  if (!idea || !draft || draft.id !== idea.id) return false;
+  const editVersion = Number(idea.editVersion) || 0;
+  if (Number.isSafeInteger(draft.draftBaseVersion)) return draft.draftBaseVersion === editVersion;
+  // Preserve existing timestamp-based drafts, even across a downgrade that
+  // copied the current canonical idea (and its edit version) into a draft.
+  return (Number(draft.editVersion) || 0) === editVersion && draft.draftUpdatedAt >= idea.updatedAt;
+}
 function draftApplies(idea, drafts) {
-  return drafts.some(draft => draft && draft.id === idea.id && draft.draftUpdatedAt >= idea.updatedAt);
+  return drafts.some(draft => canRestoreDraft(idea, draft));
 }
 function secondsOf(notes, bpm) {
   let beats = 0;
@@ -26,7 +36,8 @@ function secondsOf(notes, bpm) {
   return beats * 60 / (Number(bpm) || 100);
 }
 function summaryFrom(idea, drafts) {
-  const notes = ideaNotes(idea);
+  const notes = ideaNotes(idea).filter(note =>
+    note && Number.isFinite(note.start) && Number.isFinite(note.duration) && Number.isFinite(note.midi));
   const pitches = notes.map(note => Number(note.midi)).filter(Number.isFinite);
   const min = pitches.length ? Math.min.apply(null, pitches) : 0;
   const max = pitches.length ? Math.max.apply(null, pitches) : 0;
@@ -144,7 +155,7 @@ function summaryPage(offset, limit) {
       dateLabel: (date.getMonth() + 1) + '月' + date.getDate() + '日',
       secondsLabel: item.seconds.toFixed(1),
       noteCount: item.noteCount,
-      preview: item.preview,
+      preview: item.preview.slice(0, THUMBNAIL_BARS).map((bar, key) => Object.assign({ key }, bar)),
       hasDraft: item.hasDraft,
       isDemo: item.isDemo
     };
@@ -180,7 +191,8 @@ function clearDraft(id) {
 }
 function saveDraft(idea) {
   const drafts = listDrafts(), at = drafts.findIndex(draft => draft.id === idea.id);
-  const data = Object.assign({}, idea, { notes: normalizeNotes(idea.notes), draftUpdatedAt: Date.now() });
+  const data = Object.assign({}, idea, { notes: normalizeNotes(idea.notes), draftUpdatedAt: Date.now(),
+    draftBaseVersion: Number(idea.editVersion) || 0 });
   if (at >= 0) drafts[at] = data; else drafts.push(data);
   const cached = cleanIndex();
   const wasDirty = beginMutation();
@@ -204,7 +216,10 @@ function save(idea) {
   const data = Object.assign({}, idea, { title: String(idea.title || '未命名的灵感').trim().slice(0, 40),
     notes, bpm: clamp(Number(idea.bpm) || 100, 40, 240), updatedAt: Date.now() });
   delete data.draftUpdatedAt;
+  delete data.draftBaseVersion;
   const ideas = list(), at = ideas.findIndex(item => item.id === data.id);
+  const previousVersion = at < 0 ? 0 : Number(ideas[at].editVersion) || 0;
+  data.editVersion = previousVersion + 1;
   const cached = cleanIndex(), cacheMatches = indexMatchesIdeas(cached, ideas);
   if (at >= 0) ideas[at] = data;
   else {
@@ -247,13 +262,49 @@ function save(idea) {
 async function saveRecording(tempPath, id, decoded) {
   initDir();
   const filePath = ROOT() + '/recording-' + id + '.wav';
-  if (decoded) {
-    const buffer = require('./wav').encodeWav(decoded.samples, decoded.sampleRate);
-    await new Promise((resolve, reject) => wx.getFileSystemManager().writeFile({ filePath, data: buffer, success: resolve, fail: reject }));
-  } else {
-    await new Promise((resolve, reject) => wx.getFileSystemManager().copyFile({ srcPath: tempPath, destPath: filePath, success: resolve, fail: reject }));
+  try {
+    if (decoded) {
+      const buffer = await require('./wav').encodeWavAsync(decoded.samples, decoded.sampleRate);
+      await new Promise((resolve, reject) => wx.getFileSystemManager().writeFile({ filePath, data: buffer, success: resolve, fail: reject }));
+    } else {
+      await new Promise((resolve, reject) => wx.getFileSystemManager().copyFile({ srcPath: tempPath, destPath: filePath, success: resolve, fail: reject }));
+    }
+  } catch (error) {
+    removeFile(filePath);
+    throw error;
   }
   return filePath;
+}
+function pendingRecordings() {
+  const records = wx.getStorageSync(RECORDINGS_KEY);
+  return Array.isArray(records) ? records : [];
+}
+async function stageRecording(tempPath, duration) {
+  if (typeof tempPath !== 'string' || !tempPath) throw new Error('没有收到录音文件，请重新录制。');
+  initDir();
+  const id = uid(), now = new Date();
+  const extension = /\.(wav|mp3|aac|m4a|webm|ogg)$/i.exec(tempPath);
+  const filePath = ROOT() + '/capture-' + id + (extension ? extension[0].toLowerCase() : '.audio');
+  const recording = {
+    id, path: filePath, createdAt: now.getTime(), duration: Math.max(0, Number(duration) || 0),
+    title: (now.getMonth() + 1) + '月' + now.getDate() + '日的旋律'
+  };
+  try {
+    await new Promise((resolve, reject) => wx.getFileSystemManager().copyFile({
+      srcPath: tempPath, destPath: filePath, success: resolve, fail: reject
+    }));
+    wx.setStorageSync(RECORDINGS_KEY, [recording, ...pendingRecordings()]);
+  } catch (error) {
+    removeFile(filePath);
+    throw error;
+  }
+  return recording;
+}
+function removePendingRecording(id) {
+  const records = pendingRecordings(), recording = records.find(item => item.id === id);
+  if (!recording) return;
+  wx.setStorageSync(RECORDINGS_KEY, records.filter(item => item.id !== id));
+  removeFile(recording.path);
 }
 function removeFile(path) {
   if (path && path.indexOf(ROOT() + '/') === 0) { try { wx.getFileSystemManager().unlinkSync(path); } catch (_) {} }
@@ -282,4 +333,5 @@ function remove(id) {
 }
 function midiPath(id) { initDir(); return ROOT() + '/melody-' + id + '.mid'; }
 
-module.exports = { list, get, listDrafts, getDraft, saveDraft, clearDraft, save, saveRecording, remove, removeFile, midiPath, summaryPage };
+module.exports = { list, get, listDrafts, getDraft, canRestoreDraft, saveDraft, clearDraft, save, saveRecording,
+  pendingRecordings, stageRecording, removePendingRecording, remove, removeFile, midiPath, summaryPage };

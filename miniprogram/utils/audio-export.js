@@ -157,7 +157,8 @@ function validateMelody(options) {
   if (musicDuration > MAX_SECONDS + .000000001) {
     throw invalid('旋律时长约 ' + musicDuration.toFixed(1) + ' 秒，超过 120 秒上限，请精简后再分享。', 'AUDIO_EXPORT_LIMIT');
   }
-  return { notes, bpm, tone, musicDuration };
+  const snapshot = notes.map(note => ({ midi: note.midi, start: note.start, duration: note.duration, velocity: note.velocity || 85 }));
+  return { notes: snapshot, bpm, tone, musicDuration };
 }
 
 function previewKey(notes, bpm, tone) {
@@ -256,9 +257,9 @@ async function prepareMelody(options) {
           return null;
         }
         if (!isFileStats(stats)) throw new Error('缓存文件为空或不可读');
-        const cachedDuration = Number(cache.duration);
-        const duration = Number.isFinite(cachedDuration) && cachedDuration >= 0 ? cachedDuration : fallbackDuration;
-        return exportResult(destPath, options.title, 'melody', stats.size, duration, melody.bpm);
+        // duration is deterministic from the key-matched notes. Do not carry a
+        // duration field from a replaced audio source into this export.
+        return exportResult(destPath, options.title, 'melody', stats.size, fallbackDuration, melody.bpm);
       } catch (error) {
         removeOwnedFile(destPath);
         if (cancelled(isCancelled)) return null;

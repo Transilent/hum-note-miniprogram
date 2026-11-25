@@ -1,0 +1,301 @@
+{
+  "date": "2026-11-01",
+  "algorithm": "SHA-256",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "path": "miniprogram/app.js",
+      "sha256": "cb150391fa58a266e630edbb43a148eca565cc3e59a2c17982cf9d61d1b26276",
+      "bytes": 137
+    },
+    {
+      "path": "miniprogram/app.json",
+      "sha256": "cdcad21a7b6f0e17df2e22f0900427eeb588b657bcd056d7072b90a231aadc97",
+      "bytes": 530
+    },
+    {
+      "path": "miniprogram/app.wxss",
+      "sha256": "bc94d60c3d67798b1a802e70146b42b18a4b3c450d3d3fed7b3217ac0fdf3e8d",
+      "bytes": 2118
+    },
+    {
+      "path": "miniprogram/pages/compose/compose.js",
+      "sha256": "7a5919a262f14bc8f806c731678cbf3b5e5e83ee5437f352191568ae3f6e3dc5",
+      "bytes": 14849
+    },
+    {
+      "path": "miniprogram/pages/compose/compose.json",
+      "sha256": "9b02a4cec1b8f5454bfbed4c5c80f243ead846f23c210e89843af3292262bb94",
+      "bytes": 45
+    },
+    {
+      "path": "miniprogram/pages/compose/compose.wxml",
+      "sha256": "dc66b04c6cfc797fdac2ce1f3725b0b5ff7eb9771641eb8c9930295c5aaf0a27",
+      "bytes": 7640
+    },
+    {
+      "path": "miniprogram/pages/compose/compose.wxss",
+      "sha256": "eb71772b9bb2754e491626ca9ad94cf8c086fef1c0daf07e7be83459d8a5408b",
+      "bytes": 4888
+    },
+    {
+      "path": "miniprogram/pages/editor/editor.js",
+      "sha256": "515771ce6c77206334c0c9f6f529eb804ad4e0d331e704428e5a3abcc93f298c",
+      "bytes": 36040
+    },
+    {
+      "path": "miniprogram/pages/editor/editor.json",
+      "sha256": "e862cad2e25b572a7c8ca5a4d872b7146e1c04a5ab92fdfcf0a1f278c2df7a31",
+      "bytes": 68
+    },
+    {
+      "path": "miniprogram/pages/editor/editor.wxml",
+      "sha256": "53bee31b4a04afad612a5abb58c085f9e1c7a5de1ffca7995378fd4451931d2b",
+      "bytes": 13299
+    },
+    {
+      "path": "miniprogram/pages/editor/editor.wxss",
+      "sha256": "08fb93136b26c88d59ca6ba58c520c2131777491e6336b2ec4cdc3c4be9fd5f1",
+      "bytes": 10078
+    },
+    {
+      "path": "miniprogram/pages/index/index.js",
+      "sha256": "52aeed22a6c8af67c31fe77b9f76e02fcf0998f283b2e7b5f884598779a10af8",
+      "bytes": 18315
+    },
+    {
+      "path": "miniprogram/pages/index/index.json",
+      "sha256": "8d803acba7175fc2cf30c922970ff65b6b3e4a4a095883bda366430a98b1c2c3",
+      "bytes": 81
+    },
+    {
+      "path": "miniprogram/pages/index/index.wxml",
+      "sha256": "dd2b0c693f42f9cd45a31a36614f5fcfb07ecffd8bef3d8221a00a729827f8d7",
+      "bytes": 4546
+    },
+    {
+      "path": "miniprogram/pages/index/index.wxss",
+      "sha256": "09b5c900b7b0e0ded44a1a9ed1b14a9d69763c6eb0de7f3be62646a6c520e0f0",
+      "bytes": 5184
+    },
+    {
+      "path": "miniprogram/sitemap.json",
+      "sha256": "963c7a9ad48f29f6dbebc16208d68fccdd09e9289af9f46ffae6472503bcd43f",
+      "bytes": 89
+    },
+    {
+      "path": "miniprogram/utils/audio-export.js",
+      "sha256": "281a5091a3dab7adee92c87607519937f5ec7b6f67bb25dd745de24aa87231d8",
+      "bytes": 10980
+    },
+    {
+      "path": "miniprogram/utils/audio.js",
+      "sha256": "e446ac66bee0bc938225a17a3cb3ac84bba6a7178ff30f8ee19173c9b55c7977",
+      "bytes": 12619
+    },
+    {
+      "path": "miniprogram/utils/composition.js",
+      "sha256": "06f60dc437022554d5cc20b885b4668753fab4e184b46c1d5d07359bbf983d44",
+      "bytes": 14116
+    },
+    {
+      "path": "miniprogram/utils/creation-session.js",
+      "sha256": "a93ca0b5ff1e19ad86275bba7e01e010f914114a4a4c6a6ce3993f082d946675",
+      "bytes": 405
+    },
+    {
+      "path": "miniprogram/utils/midi.js",
+      "sha256": "809f9e94ef2f2fd9c828a781a37d2df65f5ea8e4404637b4228d26cd208f93d2",
+      "bytes": 1539
+    },
+    {
+      "path": "miniprogram/utils/music.js",
+      "sha256": "b915c8e305ab9c6904bde25e6acf03102045d958026368d471de452ab08324ec",
+      "bytes": 3956
+    },
+    {
+      "path": "miniprogram/utils/pitch-config.js",
+      "sha256": "c2070b39e21ea161e5b7197811f1ec7d534479d12589bf1d7ee529c526a633d6",
+      "bytes": 731
+    },
+    {
+      "path": "miniprogram/utils/pitch-segmentation.js",
+      "sha256": "ed2872faa3670a73d36d6a21d260a4494a6d1860694cbaa8495c1b71caa6e7dc",
+      "bytes": 16634
+    },
+    {
+      "path": "miniprogram/utils/pitch.js",
+      "sha256": "f7bb9c65f32dc5d0dfa58c79f8cca886e921f365e0e6e0b65a4c9d108eafd89c",
+      "bytes": 5550
+    },
+    {
+      "path": "miniprogram/utils/playback-clock.js",
+      "sha256": "cf99ca1c682d456dc114e4cb71b72ea6e868c04252d4605df864a502d12a5f42",
+      "bytes": 1448
+    },
+    {
+      "path": "miniprogram/utils/record-permission.js",
+      "sha256": "2c6008b805ae81ce3bb3190edd6810190ff4882f051a6343e71fabfadde349e1",
+      "bytes": 12826
+    },
+    {
+      "path": "miniprogram/utils/storage.js",
+      "sha256": "3affe95c8c02b14cbc6328b1fdaac2d2a4e7c5d9deb27db597880d4201b13b85",
+      "bytes": 11927
+    },
+    {
+      "path": "miniprogram/utils/view-patch.js",
+      "sha256": "621cc15cf5de7af4f8f44b085d3ef15aca3b998b9982e0adf0faf90232d3273b",
+      "bytes": 1090
+    },
+    {
+      "path": "miniprogram/utils/wav.js",
+      "sha256": "b0a9d9866764553d64679de17db26f8b7775a6c0efa8df1ada644f316a2493fd",
+      "bytes": 3613
+    },
+    {
+      "path": "NOTICE",
+      "sha256": "46fb8e48bb640680d5d2d487c46abb2e7a9b6f7336b24a588348b99c7dc850b8",
+      "bytes": 159
+    },
+    {
+      "path": "package.json",
+      "sha256": "0a4987b9d4c390bfcc692fc985edd8f7e4aac480b79c3b4336b2e71bccf14b71",
+      "bytes": 722
+    },
+    {
+      "path": "project.config.json",
+      "sha256": "cc1baebcd1de21cc6d510eb1e6368b8e000843ffef322ab96d88492c21db905d",
+      "bytes": 891
+    },
+    {
+      "path": "tests/audio-export.cjs",
+      "sha256": "d720d775a8ba2b54c74f31627687d2fcbf8eb89c0e905a29dba3a903ef7e24d6",
+      "bytes": 13054
+    },
+    {
+      "path": "tests/audio-performance.cjs",
+      "sha256": "bbcc3abba8e030ffb0e4e802fc124aee228b55f0c42db5483986f247d317f5a4",
+      "bytes": 15795
+    },
+    {
+      "path": "tests/composition.cjs",
+      "sha256": "83d8f0a3e9dda16c1b1d52c066ef2ffbe90b3dd3eec6fb584dfd200de73effa0",
+      "bytes": 11987
+    },
+    {
+      "path": "tests/creation-ui.cjs",
+      "sha256": "f4e7b8785a00bf32911c99d50654410dede7909f8b05eda06aeb4d7409e18704",
+      "bytes": 32272
+    },
+    {
+      "path": "tests/editor-performance.cjs",
+      "sha256": "e76f8124db7156384d61f77bd8cd0baa0e7de1ac7cda551e7e2fa0666cf74971",
+      "bytes": 13055
+    },
+    {
+      "path": "tests/editor.js",
+      "sha256": "0e04c2a1613ade966f8673756240c8d7ed982691e7ba0f6be863dbaeca2eeedc",
+      "bytes": 7221
+    },
+    {
+      "path": "tests/humtrans-metrics.cjs",
+      "sha256": "12ae5e33ab87ba62f593928103f3aff08f3b81e5d7af1b6b3cefbbde3a11fbf8",
+      "bytes": 8553
+    },
+    {
+      "path": "tests/library-performance.js",
+      "sha256": "735b8771eefcdeaa8fb0ba76f767bab1ab89e26b76c40e638b1c22080ca4ca5d",
+      "bytes": 21232
+    },
+    {
+      "path": "tests/page-mock.cjs",
+      "sha256": "10472d3b94f6f0147cc7e50ea49b74cf681aa0dd1a68aff1b422a5954de12a21",
+      "bytes": 530
+    },
+    {
+      "path": "tests/pitch-performance.cjs",
+      "sha256": "6ba279d7a802a001ea00b3650a7490e6dc90ec559e9ecb73f890086c65ad3e0a",
+      "bytes": 12762
+    },
+    {
+      "path": "tests/playback-clock.js",
+      "sha256": "5114cb4f0326fff8a09e6a2441968520354e89528f1e989b09d9cf900178a5f7",
+      "bytes": 5445
+    },
+    {
+      "path": "tests/quality-round.cjs",
+      "sha256": "c673ae330c0d0677080418ce98bd52b3bee49ff393117d79c9a655c465e9a233",
+      "bytes": 35527
+    },
+    {
+      "path": "tests/record-permission.js",
+      "sha256": "3570fd9539aec8036bcf2dc910d2f58790038dca756f612ee40e553ef4bd8c5f",
+      "bytes": 11407
+    },
+    {
+      "path": "tests/run.js",
+      "sha256": "115664bd1349969aabaf0884c5474e5bbffbb6cfb38f812de9f917e5c677391d",
+      "bytes": 12844
+    },
+    {
+      "path": "tests/storage-quality.cjs",
+      "sha256": "c488563547a1b9d03ec45906ed9dcfd830705afda5a891e4ad2701f069ff470b",
+      "bytes": 2406
+    },
+    {
+      "path": "tools/baseline/pitch.js",
+      "sha256": "1526c17943b36f4e8fba74d3e775ae7733cebfda6f3cd16941f274de87db1865",
+      "bytes": 5704
+    },
+    {
+      "path": "tools/humtrans-benchmark.cjs",
+      "sha256": "295883bd33bbfb12e0cba40c107b0ba97251406a8aba6b7f5ed601d1d1f07d07",
+      "bytes": 9574
+    },
+    {
+      "path": "tools/humtrans-evaluate.cjs",
+      "sha256": "02fcccc08a1e98a4534d3171a87e3c550e843a8e1b10de8e4428786ec9d76f67",
+      "bytes": 9516
+    },
+    {
+      "path": "tools/humtrans-metrics.cjs",
+      "sha256": "6160d95420971409c9b30a58f682e6c2b3685e44c7a6e55bcc6f7a3b304e3458",
+      "bytes": 20531
+    },
+    {
+      "path": "tools/humtrans-parity.cjs",
+      "sha256": "9940063c7ae786db3327708f8b87d4551f333bbbd0ea9487a7260a9e3e782f14",
+      "bytes": 2485
+    },
+    {
+      "path": "tools/humtrans-report.cjs",
+      "sha256": "2d94002d536528ed439a948ada6450541b681da95227db786925993e4653cee9",
+      "bytes": 6869
+    },
+    {
+      "path": "tools/humtrans-segmentation.cjs",
+      "sha256": "f48380c679b830dd752bb48b2a9757d96b160a5baf6f4adf3d0d958ad68caedb",
+      "bytes": 19250
+    },
+    {
+      "path": "tools/performance-baseline/pitch.js",
+      "sha256": "736e15aa67f51f61fb14bca4c25da716b32de31e4e576f34c29c73ad839f6787",
+      "bytes": 4531
+    },
+    {
+      "path": "tools/performance-benchmark.cjs",
+      "sha256": "ccc53b2c96b019f42c383b5139575c31af635f4a736d5aa288a86d383355113f",
+      "bytes": 5273
+    },
+    {
+      "path": "tools/quality-fixtures.cjs",
+      "sha256": "0db600b7dc36ff6ab359ec047ab0045838659aea07858acfebeee7e009526e25",
+      "bytes": 13506
+    }
+  ]
+}

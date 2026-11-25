@@ -1,12 +1,14 @@
 const music = require('../../utils/music');
 const storage = require('../../utils/storage');
+const recognitionSettings = require('../../utils/recognition-settings');
 
 const START_TIMEOUT_MS = 15000;
+const STOP_TIMEOUT_MS = 6000;
 const DEFAULT_PRIVACY_NAME = '哼记隐私保护指引';
 const LIBRARY_PAGE_SIZE = 20;
 let permissionModule = null;
 let audioModule = null;
-let transcribeFn = null;
+let recognitionModule = null;
 
 function getPermission() {
   if (!permissionModule) permissionModule = require('../../utils/record-permission');
@@ -15,8 +17,8 @@ function getPermission() {
 
 function recognitionTools() {
   if (!audioModule) audioModule = require('../../utils/audio');
-  if (!transcribeFn) transcribeFn = require('../../utils/pitch').transcribe;
-  return { audio: audioModule, transcribe: transcribeFn };
+  if (!recognitionModule) recognitionModule = require('../../utils/recognition');
+  return { audio: audioModule, transcribe: recognitionModule.transcribe };
 }
 
 function privacyNameLabel(name) {
@@ -24,21 +26,27 @@ function privacyNameLabel(name) {
 }
 
 Page({
-  data: { ideas: [], ideaTotal: 0, hasMore: false, recording: false, starting: false, processing: false, progress: 0, elapsed: '00:00',
-    recordSeconds: 0, privacyVisible: false, privacyName: DEFAULT_PRIVACY_NAME,
-    bars: [18, 31, 23, 43, 56, 37, 65, 47, 77, 57, 88, 63, 96, 67, 83, 48, 68, 39, 55, 33, 43, 25, 32, 18] },
+  data: { ideas: [], ideaTotal: 0, hasMore: false, recording: false, starting: false, stopping: false, processing: false, progress: 0, elapsed: '00:00',
+    recordSeconds: 0, privacyVisible: false, privacyName: DEFAULT_PRIVACY_NAME, settingsVisible: false,
+    pendingVisible: false, pendingCount: 0, pendingRecordings: [],
+    recognitionMode: 'standard', processingLabel: '正在本机识别音高与音符', checkingRecognition: false,
+  },
   onLoad() {
     this.alive = true;
+    this.navigationPending = false;
     this.recordAttempt = 0;
+    const recognitionMode = recognitionSettings.getMode(wx);
+    if (recognitionMode !== this.data.recognitionMode) this.setData({ recognitionMode });
     this.recorder = wx.getRecorderManager();
     this.handleStart = () => {
+      if (!this.alive || this.data.recording) return;
       this.clearStartWatchdog();
+      clearTimeout(this.stopWatchdog);
       this.startIssued = false;
-      if (!this.alive) return;
-      if (!this.visible) {
+      if (!this.visible || !this.data.starting) {
         this.cancelled = true;
-        this.setData({ recording: false, starting: false });
-        try { recorder.stop(); } catch (_) {}
+        this.setData({ recording: false, starting: false, stopping: false });
+        try { this.recorder.stop(); } catch (_) {}
         return;
       }
       this.startedAt = Date.now();
@@ -47,18 +55,20 @@ Page({
       this.timer = setInterval(() => {
         const value = Math.min(30, (Date.now() - this.startedAt) / 1000);
         const second = Math.floor(value);
-        const patch = { recordSeconds: value };
         if (second !== this.recordingSecond) {
           this.recordingSecond = second;
-          patch.elapsed = music.timeLabel(value);
+          this.setData({ recordSeconds: second, elapsed: music.timeLabel(value) });
         }
-        this.setData(patch);
-      }, 150);
+      }, 200);
     };
     this.handleStop = res => {
+      if (!this.alive || (!this.data.recording && !this.startIssued)) return;
       this.clearStartWatchdog();
+      clearTimeout(this.stopWatchdog);
+      this.startIssued = false;
+      clearInterval(this.timer);
       if (this.cancelled) {
-        if (this.alive) this.setData({ recording: false, starting: false, processing: false });
+        this.setData({ recording: false, starting: false, stopping: false });
         return;
       }
       this.finishRecording(res);
@@ -67,7 +77,7 @@ Page({
     this.handleInterruption = () => {
       if (this.data.recording) {
         this.wasInterrupted = true;
-        this.recorder.stop();
+        this.requestRecordingStop();
       }
     };
     this.handlePrivacyNeed = (resolve, eventInfo) => {
@@ -96,12 +106,14 @@ Page({
   },
   onShow() {
     this.visible = true;
+    this.navigationPending = false;
     this.refresh();
+    this.refreshPendingRecordings();
     if (!this.alive || !this.awaitingSettings) return;
     const target = this.awaitingSettings;
     clearTimeout(this.foregroundTimer);
     this.foregroundTimer = setTimeout(() => {
-      if (!this.alive || this.awaitingSettings !== target) return;
+      if (!this.alive || !this.visible || this.awaitingSettings !== target) return;
       this.awaitingSettings = null;
       this.retryRecordAfterSettings(target);
     }, 250);
@@ -109,14 +121,17 @@ Page({
   onReachBottom() { this.loadMore(); },
   onHide() {
     this.visible = false;
-    if (this.data.recording) this.recorder.stop();
+    if (this.data.recording) this.requestRecordingStop();
   },
   onUnload() {
     this.alive = false;
     this.cancelled = true;
+    this.navigationPending = false;
     this.recordAttempt++;
+    if (recognitionModule) recognitionModule.dispose();
     clearInterval(this.timer);
     clearTimeout(this.startWatchdog);
+    clearTimeout(this.stopWatchdog);
     clearTimeout(this.foregroundTimer);
     if (this.data.recording || this.startIssued) {
       try { this.recorder.stop(); } catch (_) {}
@@ -132,7 +147,16 @@ Page({
     }
   },
   refresh() {
-    const page = storage.summaryPage(0, LIBRARY_PAGE_SIZE);
+    // Keep the user's loaded depth when they return from an editor. Reloading
+    // only the first page made a library jump after editing any old idea.
+    const loaded = Array.isArray(this.data.ideas) ? this.data.ideas.length : 0;
+    const limit = Math.min(100, Math.max(LIBRARY_PAGE_SIZE, loaded));
+    let page;
+    try { page = storage.summaryPage(0, limit); }
+    catch (_) {
+      if (this.alive && this.visible !== false) wx.showToast({ title: '暂时无法读取灵感列表，请重试', icon: 'none' });
+      return false;
+    }
     const signature = page.revision + ':' + page.total;
     if (this.librarySignature === signature && Array.isArray(this.data.ideas)) return false;
     this.librarySignature = signature;
@@ -143,7 +167,12 @@ Page({
   loadMore() {
     if (!this.data.hasMore) return 0;
     const offset = this.libraryOffset || this.data.ideas.length;
-    const page = storage.summaryPage(offset, LIBRARY_PAGE_SIZE);
+    let page;
+    try { page = storage.summaryPage(offset, LIBRARY_PAGE_SIZE); }
+    catch (_) {
+      wx.showToast({ title: '暂时无法读取更多灵感', icon: 'none' });
+      return 0;
+    }
     const signature = page.revision + ':' + page.total;
     if (this.librarySignature && signature !== this.librarySignature) {
       this.refresh();
@@ -158,12 +187,115 @@ Page({
     return incoming.length;
   },
   recordTap() {
-    if (this.data.processing || this.data.starting) return;
-    if (this.data.recording) { this.recorder.stop(); return; }
+    if (!this.alive || this.visible === false || this.navigationPending || this.processingJob ||
+        this.data.processing || this.data.starting || this.data.checkingRecognition) return false;
+    if (this.data.recording) return this.requestRecordingStop();
     this.cancelled = false;
     this.wasInterrupted = false;
     this.setData({ starting: true });
     this.beginRecordAttempt();
+    return true;
+  },
+  requestRecordingStop() {
+    if (this.data.stopping) return false;
+    this.setData({ stopping: true });
+    try { this.recorder.stop(); }
+    catch (error) { this.handleRecordError(error); return false; }
+    if (this.data.stopping) {
+      this.stopWatchdog = setTimeout(() => {
+        if (!this.alive || !this.data.stopping) return;
+        this.setData({ stopping: false });
+        if (this.visible) wx.showToast({ title: '结束录音超时，请再点一次', icon: 'none' });
+      }, STOP_TIMEOUT_MS);
+    }
+    return true;
+  },
+  openSettings() {
+    if (this.data.recording || this.data.starting || this.data.processing) return false;
+    this.setData({ settingsVisible: true });
+    return true;
+  },
+  closeSettings() { this.setData({ settingsVisible: false }); },
+  refreshPendingRecordings() {
+    try {
+      const recordings = storage.pendingRecordings();
+      const patch = {};
+      if (this.data.pendingCount !== recordings.length) patch.pendingCount = recordings.length;
+      if (this.data.pendingVisible) patch.pendingRecordings = recordings.map(({ id, title, duration }) => ({
+        id, title, seconds: duration ? (duration / 1000).toFixed(1) + ' 秒' : '本地录音'
+      }));
+      if (Object.keys(patch).length) this.setData(patch);
+    } catch (_) {
+      // A transient storage error must not prevent the library from opening.
+    }
+  },
+  openPendingRecordings() {
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition) return;
+    this.setData({ pendingVisible: true });
+    this.refreshPendingRecordings();
+  },
+  closePendingRecordings() { this.setData({ pendingVisible: false, pendingRecordings: [] }); },
+  retryPendingRecording(event) {
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition || this.navigationPending) return false;
+    try {
+      const id = event.currentTarget.dataset.id;
+      const recording = storage.pendingRecordings().find(item => item.id === id);
+      if (!recording) { this.refreshPendingRecordings(); return false; }
+      this.closePendingRecordings();
+      this.wasInterrupted = false;
+      return this.processRecording(recording);
+    } catch (_) {
+      wx.showToast({ title: '无法读取本地录音，请重试', icon: 'none' });
+      return false;
+    }
+  },
+  deletePendingRecording(event) {
+    const id = event.currentTarget.dataset.id;
+    wx.showModal({ title: '删除这段待识别录音？', content: '删除后无法恢复。', confirmColor: '#a53734',
+      success: result => {
+        if (!result.confirm || !this.alive || this.data.processing) return;
+        try { storage.removePendingRecording(id); this.refreshPendingRecordings(); }
+        catch (_) { wx.showToast({ title: '删除失败，请重试', icon: 'none' }); }
+      }
+    });
+  },
+  changeRecognitionMode(event) {
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition) return false;
+    const mode = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.mode;
+    if (!recognitionSettings.validMode(mode) || mode === this.data.recognitionMode) return false;
+    this.setData({ recognitionMode: mode });
+    if (!recognitionSettings.setMode(wx, mode)) wx.showToast({ title: '本次已切换，设置未能保存', icon: 'none' });
+    return true;
+  },
+  async checkRecognitionCompatibility() {
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition) return false;
+    this.setData({ checkingRecognition: true });
+    const diagnostics = require('../../utils/recognition-diagnostics');
+    try {
+      if (!recognitionModule) recognitionModule = require('../../utils/recognition');
+      const report = await recognitionModule.checkCompatibility(wx, () => this.alive === false || this.visible === false,
+        title => { if (this.alive) wx.showLoading({ title, mask: true }); });
+      if (!this.alive || this.visible === false) return false;
+      wx.hideLoading();
+      wx.showModal({ title: report.ok ? '兼容性检查通过' : '兼容性检查未通过',
+        content: diagnostics.explanation(report) + (report.failure ? '\n\n' + report.failure.code + ' · ' + report.failure.detail : ''),
+        confirmText: '复制报告', cancelText: '关闭',
+        success: result => { if (result.confirm) diagnostics.copyReport(wx, report); } });
+      return report.ok;
+    } catch (error) {
+      if (this.alive && error.code !== 'CANCELLED') wx.showToast({ title: error.message || '暂时无法完成检查', icon: 'none' });
+      return false;
+    } finally {
+      wx.hideLoading();
+      if (this.alive) this.setData({ checkingRecognition: false });
+    }
+  },
+  cancelRecognition() {
+    if (!this.data.processing || this.cancelled) return false;
+    this.cancelled = true;
+    if (recognitionModule) recognitionModule.dispose();
+    this.setData({ processingLabel: '正在取消识别…' });
+    return true;
   },
   async beginRecordAttempt() {
     const attempt = ++this.recordAttempt;
@@ -207,16 +339,18 @@ Page({
   },
   scheduleStartWatchdog() {
     this.clearStartWatchdog();
+    const attempt = this.recordAttempt;
     this.startWatchdog = setTimeout(async () => {
-      if (!this.alive || this.data.recording || !this.data.starting) return;
+      if (!this.alive || attempt !== this.recordAttempt || !this.data.starting) return;
       const scope = await getPermission().getScopeRecordState(wx);
       const microphone = getPermission().getWechatMicrophoneState(wx);
-      if (!this.alive || this.data.recording) return;
+      if (!this.alive || attempt !== this.recordAttempt || !this.data.starting) return;
       const code = scope.state === false ? 'scope-denied' : microphone.state === 'denied' ? 'system-denied' : 'record-timeout';
       const diagnostic = 'RecorderManager.start:onStart timeout after ' + START_TIMEOUT_MS + 'ms';
       console.error('[record-permission] ' + diagnostic);
       this.startIssued = false;
-      this.setData({ recording: false, starting: false });
+      this.cancelled = true;
+      this.setData({ recording: false, starting: false, stopping: false });
       this.showIssue(getPermission().createIssue(code, {
         diagnostic,
         context: { scopeState: scope.state, microphoneState: microphone.state },
@@ -230,15 +364,17 @@ Page({
     this.startWatchdog = null;
   },
   async handleRecordError(error) {
+    if (!this.alive || (!this.data.recording && !this.data.starting && !this.startIssued)) return;
+    const attempt = this.recordAttempt;
     this.clearStartWatchdog();
+    clearTimeout(this.stopWatchdog);
     this.startIssued = false;
     console.error('[record-permission] RecorderManager.onError', getPermission().errMsg(error), error);
-    if (!this.alive) return;
     clearInterval(this.timer);
-    this.setData({ recording: false, starting: false, processing: false });
+    this.setData({ recording: false, starting: false, stopping: false });
     const scope = await getPermission().getScopeRecordState(wx);
     const microphone = getPermission().getWechatMicrophoneState(wx);
-    if (!this.alive) return;
+    if (!this.alive || attempt !== this.recordAttempt || this.data.recording) return;
     const code = getPermission().classifyRecordError(error, { scopeState: scope.state, micState: microphone.state });
     this.showIssue(getPermission().createIssue(code, {
       diagnostic: getPermission().errMsg(error),
@@ -249,7 +385,7 @@ Page({
     }));
   },
   showIssue(issue) {
-    if (!this.alive || !issue) return;
+    if (!this.alive || this.visible === false || !issue) return;
     console.error('[record-permission] issue', issue.code, issue.diagnostic, issue.context);
     const actionLabels = {
       'scope-settings': '去设置',
@@ -266,7 +402,7 @@ Page({
       showCancel: action,
       confirmText: actionLabels[issue.action] || '知道了',
       cancelText: '稍后',
-      success: res => { if (res.confirm && action) this.runIssueAction(issue); }
+      success: res => { if (res.confirm && action && this.alive && this.visible !== false) this.runIssueAction(issue); }
     });
   },
   showApiIssue(title, error, content) {
@@ -280,10 +416,7 @@ Page({
     if (issue.action === 'scope-settings') this.openScopeSettings();
     else if (issue.action === 'app-settings') this.openAppSettings();
     else if (issue.action === 'privacy-contract') this.openPrivacy();
-    else if (issue.action === 'retry' && !this.data.starting && !this.data.recording) {
-      this.setData({ starting: true });
-      this.beginRecordAttempt();
-    }
+    else if (issue.action === 'retry' && !this.data.recording) this.recordTap();
   },
   async openScopeSettings() {
     if (!this.alive) return;
@@ -310,53 +443,138 @@ Page({
     }
   },
   retryRecordAfterSettings() {
-    if (!this.alive || this.data.recording || this.data.processing) return;
-    this.setData({ starting: true });
-    this.beginRecordAttempt();
+    if (!this.data.recording) this.recordTap();
   },
-  async finishRecording(result) {
+  finishRecording(result) {
     clearInterval(this.timer);
-    if (!this.alive) return;
-    this.setData({ recording: false, starting: false, processing: true, progress: 0 });
+    if (!this.alive || this.cancelled) return false;
+    return this.processRecording(null, result);
+  },
+  async processRecording(recording, result) {
+    if (!this.alive || this.processingJob) return false;
+    this.processingJob = true;
+    this.cancelled = false;
+    const recognitionMode = this.data.recognitionMode;
+    this.setData({ recording: false, starting: false, stopping: false, processing: true, progress: 0,
+      processingLabel: recording ? '读取本地录音' : '保存本地录音' });
+    const cancelled = () => !this.alive || this.cancelled;
+    let lastProgressAt = 0;
     let source = null;
     try {
-      if (result.duration && result.duration < 700) throw new Error('再多哼一会儿吧，建议录制 2 到 15 秒。');
+      if (recording && storage.get(recording.id)) {
+        // The idea can be committed before metadata cleanup if WeChat is interrupted.
+        try { storage.removePendingRecording(recording.id); } catch (_) {}
+        return this.openRecognized(recording.id);
+      }
+      if (!recording) {
+        const { tempFilePath, duration } = result || {};
+        recording = await storage.stageRecording(tempFilePath, duration);
+      }
+      if (cancelled()) return false;
+      this.setData({ processingLabel: '读取本地录音' });
       const tools = recognitionTools();
-      const decoded = await tools.audio.decodeFile(result.tempFilePath);
+      const decoded = await tools.audio.decodeFile(recording.path, cancelled);
+      if (cancelled()) return false;
+      if (decoded.samples.length / decoded.sampleRate < .7) throw new Error('这段录音太短，建议连续哼唱 2 到 15 秒。');
       const bpm = 100;
+      this.setData({ processingLabel: '正在本机识别音高与音符' });
       const recognized = await tools.transcribe(decoded.samples, decoded.sampleRate, bpm,
-        progress => { if (this.alive) this.setData({ progress }); }, () => !this.alive || this.cancelled);
-      if (!this.alive || this.cancelled) return;
-      const id = music.uid(); source = await storage.saveRecording(result.tempFilePath, id, decoded);
-      const date = new Date();
-      storage.save({ id, title: (date.getMonth() + 1) + '月' + date.getDate() + '日的旋律', bpm,
-        createdAt: Date.now(), updatedAt: Date.now(), notes: recognized.notes, source,
-        confidence: recognized.confidence, recordingDuration: recognized.duration, isDemo: false });
-      this.refresh();
-      if (this.wasInterrupted) wx.showToast({ title: '已保存中断前的旋律', icon: 'none' });
-      wx.navigateTo({ url: '/pages/editor/editor?id=' + id });
+        progress => {
+          const now = Date.now();
+          if (!cancelled() && (progress === 100 || now - lastProgressAt >= 70)) {
+            this.setData({ progress });
+            lastProgressAt = now;
+          }
+        }, cancelled,
+        { mode: recognitionMode, onStage: processingLabel => {
+          if (!cancelled() && processingLabel !== this.data.processingLabel) this.setData({ processingLabel });
+        } });
+      if (cancelled()) return false;
+      const { id, title, createdAt } = recording;
+      this.setData({ processingLabel: '保存旋律与录音' });
+      source = await storage.saveRecording(recording.path, id, decoded);
+      if (cancelled()) return false;
+      storage.save({ id, title, bpm,
+        createdAt, updatedAt: Date.now(), notes: recognized.notes, source,
+        confidence: recognized.confidence, recordingDuration: recognized.duration, isDemo: false,
+        recognitionEngine: recognized.engine || 'yin', recognitionVersion: recognized.engineVersion || null,
+        recognitionProfile: recognized.postprocessVersion || null, recognitionConditioning: recognized.conditioning || null,
+        recognitionFallback: recognized.fallbackFrom || null, recognitionFallbackReason: recognized.fallbackReason || null,
+        recognitionDiagnostic: recognized.fallbackDiagnostic || null });
+      source = null;
+      try { storage.removePendingRecording(id); } catch (_) {}
+      if (recognized.fallbackFrom) {
+        this.setData({ recognitionMode: 'standard' });
+        recognitionSettings.setMode(wx, 'standard');
+        if (this.visible !== false) wx.showToast({ title: '实验识别不可用，已切回标准', icon: 'none', duration: 3500 });
+      } else if (this.wasInterrupted && this.visible !== false) wx.showToast({ title: '已保存中断前的旋律', icon: 'none' });
+      return this.openRecognized(id);
     } catch (err) {
-      if (source) storage.removeFile(source);
-      if (this.alive && !this.cancelled) wx.showModal({ title: '这次没有识别成功', content: err.message || err.errMsg || '请重新录制一小段清晰的哼唱。', showCancel: false });
+      if (!cancelled() && this.visible !== false) {
+        const message = err && (err.message || err.errMsg) || '请检查本机存储空间。';
+        wx.showModal({ title: recording ? '这次没有识别成功' : '录音未能保存',
+          content: recording ? message + '\n录音已保留，可从「待识别录音」重试。' : message, showCancel: false });
+      }
+      return false;
     } finally {
-      if (this.alive) this.setData({ processing: false, progress: 0, elapsed: '00:00', recordSeconds: 0 });
+      if (source) storage.removeFile(source);
+      this.processingJob = false;
+      if (this.alive) {
+        this.setData({ processing: false, progress: 0, elapsed: '00:00', recordSeconds: 0 });
+        this.refreshPendingRecordings();
+      }
+    }
+  },
+  openRecognized(id) {
+    this.refresh();
+    if (this.visible === false) return true;
+    this.navigationPending = true;
+    return this.navigateToPage('/pages/editor/editor?id=' + id, '旋律已保存，请从灵感列表打开');
+  },
+  navigateToPage(url, failureTitle) {
+    const attempt = (this.navigationAttempt || 0) + 1;
+    this.navigationAttempt = attempt;
+    const fail = error => {
+      if (attempt !== this.navigationAttempt) return;
+      this.navigationPending = false;
+      console.warn('[navigation]', failureTitle, error && (error.errMsg || error.message));
+      if (this.alive) wx.showToast({ title: failureTitle, icon: 'none' });
+    };
+    try {
+      if (!wx || typeof wx.navigateTo !== 'function') throw new Error('navigateTo unavailable');
+      wx.navigateTo({ url, fail });
+      return true;
+    } catch (error) {
+      fail(error);
+      return false;
     }
   },
   openCreation() {
-    if (!this.data.recording && !this.data.starting && !this.data.processing) wx.navigateTo({ url: '/pages/compose/compose' });
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition || this.navigationPending) return false;
+    // Keep this guard until the page is shown again. It absorbs a second tap
+    // queued before the first navigation starts hiding the page.
+    this.navigationPending = true;
+    return this.navigateToPage('/pages/compose/compose', '暂时无法打开创作页');
   },
   openDemo() {
-    if (this.data.recording || this.data.starting || this.data.processing) return;
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition || this.navigationPending) return false;
+    this.navigationPending = true;
     try {
       let idea = storage.summaryPage(0, 100).items.find(i => i.isDemo);
       if (!idea) idea = storage.save(music.demo());
-      wx.navigateTo({ url: '/pages/editor/editor?id=' + idea.id });
-    } catch (err) { wx.showToast({ title: err.message || '保存失败，请检查存储空间', icon: 'none' }); }
+      return this.navigateToPage('/pages/editor/editor?id=' + idea.id, '暂时无法打开示例');
+    } catch (err) {
+      this.navigationPending = false;
+      wx.showToast({ title: err.message || '保存失败，请检查存储空间', icon: 'none' });
+      return false;
+    }
   },
   openIdea(event) {
-    if (!this.data.recording && !this.data.starting && !this.data.processing) {
-      wx.navigateTo({ url: '/pages/editor/editor?id=' + event.currentTarget.dataset.id });
-    }
+    if (this.data.recording || this.data.starting || this.data.processing || this.data.checkingRecognition || this.navigationPending) return false;
+    const id = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.id;
+    if (!id) return false;
+    this.navigationPending = true;
+    return this.navigateToPage('/pages/editor/editor?id=' + id, '暂时无法打开这条灵感');
   },
   ideaMenu(event) {
     const id = event.currentTarget.dataset.id;
@@ -380,4 +598,3 @@ Page({
     if (this.alive && !result.ok) this.showApiIssue('无法打开隐私保护指引', result.error, '请管理员检查隐私保护指引是否已在微信公众平台发布。');
   }
 });
-

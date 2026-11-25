@@ -1,43 +1,174 @@
-<view class="page editor {{expanded ? 'editor-expanded' : ''}}" wx:if="{{notes.length}}">
-  <view class="editor-topbar between"><text class="save-state {{hasOverlaps ? 'save-conflict' : ''}}" bindtap="saveNow">{{saveState}}</text><view class="bpm-control"><input id="bpm-input" type="number" value="{{bpm}}" bindblur="changeBpm" bindconfirm="changeBpm" /><text>BPM</text></view></view>
-  <view class="editor-page-tabs"><view class="current-tab">音符编辑</view><button id="open-composer" bindtap="openComposer">旋律创作 ↗</button></view>
-  <view class="eyebrow">A LITTLE MELODY, YOURS.</view>
-  <input id="idea-title" class="title-input" value="{{title}}" maxlength="40" bindinput="changeTitle" placeholder="给这段灵感起个名字" />
-  <view class="between subtitle-row"><text class="caption">{{notes.length}} 个音符 · {{durationLabel}} 秒</text><view class="pill">{{isDemo ? '示例旋律' : '我的哼唱'}}</view></view>
-
-  <view class="transport card"><view class="between"><view class="row"><button id="play-button" class="play-button" bindtap="play"><view wx:if="{{playing && playbackMode === 'melody'}}" class="pause-square"></view><view wx:else class="play-triangle"></view></button><view class="transport-copy"><view>{{playing && playbackMode === 'melody' ? '正在播放旋律' : '听听这段旋律'}}</view><text>{{playing && playbackMode === 'melody' ? playTime : '每一次改动，都能听见'}}</text></view></view><picker range="{{toneNames}}" value="{{toneIndex}}" bindchange="changeTone"><view class="tone-picker">{{toneNames[toneIndex]}}⌄</view></picker></view><button wx:if="{{source}}" id="original-button" class="original-button" bindtap="playOriginal">{{playing && playbackMode === 'original' ? '■ 停止原始录音' : '♫ 对比原始哼唱'}}</button></view>
-
-  <view id="roll-workspace" class="roll-workspace {{expanded ? 'expanded-workspace' : ''}}">
-  <view class="section-heading roll-heading"><text class="section-title">钢琴卷帘</text><view class="row"><button id="undo-button" class="tool-icon" disabled="{{!canUndo}}" bindtap="undo">↶</button><button id="redo-button" class="tool-icon" disabled="{{!canRedo}}" bindtap="redo">↷</button><button id="expand-roll" class="expand-button" bindtap="toggleExpanded">{{expanded ? '收起' : '展开编辑'}}</button></view></view>
-  <view class="roll-toolbar between"><view class="row"><button id="zoom-out" class="zoom-button" data-delta="-0.25" disabled="{{zoom <= 0.5}}" bindtap="changeZoom">−</button><text>{{zoom * 100}}%</text><button id="zoom-in" class="zoom-button" data-delta="0.25" disabled="{{zoom >= 2}}" bindtap="changeZoom">＋</button></view><button id="roll-play" class="roll-play" bindtap="play">{{playing && playbackMode === 'melody' ? '■ 停止' : '▶ 试听'}}</button></view>
-  <view class="roll-card card"><scroll-view id="piano-roll" class="roll-scroll" scroll-x scroll-y enhanced show-scrollbar="{{true}}" scroll-left="{{rollScrollLeft}}" scroll-top="{{rollScrollTop}}" bindscroll="onRollScroll" style="height: {{rollHeight}}rpx;"><view class="roll-inner" style="width: {{rollWidth}}rpx; height: {{rollContentHeight}}rpx;">
-    <view wx:for="{{rows}}" wx:key="midi" class="pitch-row {{item.black ? 'black-row' : ''}}" style="top: {{item.y}}rpx; width: {{rollWidth}}rpx;"><text class="pitch-name">{{item.name}}</text></view>
-    <view wx:for="{{ticks}}" wx:key="beat" class="beat-line {{item.bar ? 'bar-line' : ''}}" style="left: {{item.x}}rpx; height: {{rollContentHeight}}rpx;"><text class="beat-label">{{item.label}}</text></view>
-    <view wx:for="{{notes}}" wx:key="id" class="roll-note {{item.selected ? 'selected-note' : ''}} {{item.uncertain ? 'uncertain-note' : ''}} {{item.overlapping ? 'overlap-note' : ''}}" style="left: {{item.x}}rpx; top: {{item.y}}rpx; width: {{item.width}}rpx;" data-id="{{item.id}}" data-mode="move" bindtap="selectNote" bindtouchstart="onNoteTouchStart" catchtouchmove="onNoteTouchMove" bindtouchend="onNoteTouchEnd" bindtouchcancel="onNoteTouchEnd"><text wx:if="{{item.width > 38}}">{{item.label}}</text><view wx:if="{{item.selected && item.width >= 20}}" class="note-handle" data-id="{{item.id}}" data-mode="duration" catchtouchstart="onNoteTouchStart" catchtouchmove="onNoteTouchMove" catchtouchend="onNoteTouchEnd"></view></view>
-    <view wx:if="{{playing && playbackMode === 'melody'}}" class="playhead" style="transform: translateX({{playhead}}rpx); height: {{rollContentHeight}}rpx;"></view>
-  </view></scroll-view><view class="roll-hint">左右移起点 · 上下改音高 · 拖右侧边缘改时值<view>横移吸附 1/8 拍，也可输入起始拍精调</view></view></view>
-  <view wx:if="{{expanded && selected}}" class="expanded-selection between"><view><text class="edit-title">{{selected.label}} · 第 {{selected.startLabel}} 拍</text><view class="caption">时值 {{selected.durationLabel}} 拍{{hasOverlaps ? ' · 重叠，调整后才能保存' : ''}}</view></view><button class="text-button" bindtap="editSelected">数值精调 ↗</button></view>
+<view class="page editor {{expanded ? 'editor-expanded' : ''}} {{listenSource === 'original' ? 'editor-with-original' : ''}}" wx:if="{{noteCount}}">
+  <view class="editor-topbar">
+    <view class="editor-title-group">
+      <input id="idea-title" class="title-input" value="{{title}}" maxlength="40" bindinput="changeTitle" placeholder="灵感名称" aria-label="灵感名称" />
+      <view class="editor-meta"><text class="save-state {{hasOverlaps ? 'save-conflict' : ''}}" bindtap="saveNow">{{saveState}}</text><text wx:if="{{!hasOverlaps}}"> · {{noteCount}} 音 · {{durationLabel}} 秒</text></view>
+    </view>
+    <view class="bpm-control" aria-label="播放速度">
+      <input id="bpm-input" type="number" value="{{bpmInput}}" bindinput="onBpmDraftInput" bindblur="changeBpm" bindconfirm="changeBpm" aria-label="BPM" />
+      <text>BPM</text>
+    </view>
   </view>
-  <view wx:if="{{hasOverlaps}}" id="overlap-warning" class="overlap-warning"><view>有 {{overlapCount}} 个音符在时间上重叠</view><text>可继续拖动和试听，调整后才能保存或导出。</text><text wx:if="{{draftState}}">{{draftState}}</text></view>
-
-  <view id="note-editor" class="note-edit card" wx:if="{{selected}}"><view class="between"><view class="row"><view class="selected-badge">{{selected.label}}</view><view><view class="edit-title">正在编辑第 {{selected.number}} 个音符</view><view class="caption">第 {{selected.startLabel}} 拍开始</view></view></view><button class="text-button" bindtap="previewNote">听这个音 ↗</button></view>
-    <view class="control-row"><text class="control-label">起始拍</text><view class="start-controls"><button id="start-earlier" class="step-button" data-delta="-0.125" bindtap="nudgeStart">−</button><input id="start-input" type="digit" value="{{selected.startLabel}}" bindconfirm="startInput" bindblur="startInput" /><text class="unit">拍</text><button id="start-later" class="step-button" data-delta="0.125" bindtap="nudgeStart">＋</button></view></view>
-    <view class="position-hint">{{selected.gapBefore > 0 ? '前方留白 ' + selected.gapBefore + ' 拍，可移动起点调整' : '起始拍从 1 开始，其他音符保持原位'}}</view>
-    <view class="control-row"><text class="control-label">音高</text><view class="pitch-controls"><button id="pitch-down" class="step-button" data-delta="-1" bindtap="shiftPitch">−</button><view class="pitch-value">{{selected.label}}<text>MIDI {{selected.midi}}</text></view><button id="pitch-up" class="step-button" data-delta="1" bindtap="shiftPitch">＋</button></view></view>
-    <view class="control-row"><text class="control-label">时值</text><view class="duration-controls"><button class="step-button" data-delta="-0.125" bindtap="nudgeDuration">−</button><input id="duration-input" type="digit" value="{{selected.durationLabel}}" bindconfirm="durationInput" bindblur="durationInput" /><text class="unit">拍</text><button class="step-button" data-delta="0.125" bindtap="nudgeDuration">＋</button></view></view>
-    <view class="duration-presets"><button data-value="0.25" bindtap="setDuration" class="{{selected.duration === 0.25 ? 'chosen' : ''}}">¼ 拍</button><button data-value="0.5" bindtap="setDuration" class="{{selected.duration === 0.5 ? 'chosen' : ''}}">½ 拍</button><button data-value="1" bindtap="setDuration" class="{{selected.duration === 1 ? 'chosen' : ''}}">1 拍</button><button data-value="2" bindtap="setDuration" class="{{selected.duration === 2 ? 'chosen' : ''}}">2 拍</button><button data-value="4" bindtap="setDuration" class="{{selected.duration === 4 ? 'chosen' : ''}}">4 拍</button></view>
-    <view class="note-edit-footer between"><text>移动和改时值只影响当前音符</text><button id="delete-note" class="delete-note" bindtap="deleteNote" disabled="{{notes.length <= 1}}">删除音符</button></view>
+  <view wx:if="{{recognitionNotice}}" class="recognition-row between">
+    <text class="caption">本次使用标准识别</text><button id="recognition-diagnostic" class="text-button" bindtap="showRecognitionDiagnostic">查看诊断</button>
   </view>
 
-  <view class="section-heading"><text class="section-title">再调整一点</text><button id="add-note" class="text-button" bindtap="addNote">＋ 添加音符</button></view>
-  <view class="global-controls card"><view class="global-actions"><button data-delta="-12" bindtap="shiftAll">低八度</button><button data-delta="12" bindtap="shiftAll">高八度</button><button id="quantize-button" bindtap="quantize">对齐节奏</button></view><view class="caption small-hint">对齐节奏会吸附到 1/4 拍。点右上角 BPM 数字可改速度；识别初始为 100 BPM。</view></view>
+  <view id="roll-workspace">
+    <view class="roll-toolbar">
+      <view class="roll-buttons">
+        <button id="undo-button" class="tool-icon" disabled="{{!canUndo}}" bindtap="undo" aria-label="撤销">↶</button>
+        <button id="redo-button" class="tool-icon" disabled="{{!canRedo}}" bindtap="redo" aria-label="重做">↷</button>
+      </view>
+      <view class="roll-buttons zoom-control">
+        <button id="zoom-out" class="tool-icon" data-delta="-0.25" disabled="{{zoom <= 0.5}}" bindtap="changeZoom" aria-label="缩小时间轴">−</button>
+        <text class="tabular">{{zoom * 100}}%</text>
+        <button id="zoom-in" class="tool-icon" data-delta="0.25" disabled="{{zoom >= 2}}" bindtap="changeZoom" aria-label="放大时间轴">＋</button>
+      </view>
+      <button id="open-note-list" class="text-button list-button" bindtap="openNoteList">音符清单</button>
+      <button id="open-editor-tools" class="tool-icon tools-button" bindtap="openEditorTools" aria-label="编辑工具">···</button>
+    </view>
+    <view class="roll-card">
+      <view id="roll-ruler" class="roll-ruler" bindtap="seekFromRuler" aria-label="时间尺，点按定位播放线">
+        <view class="ruler-track" style="width: {{rollWidth}}rpx; transform: translateX(-{{rulerScroll}}px);">
+          <view wx:for="{{ticks}}" wx:key="beat" class="ruler-tick {{item.bar ? 'bar-tick' : ''}}" style="left: {{item.x}}rpx; width: {{beatWidth}}rpx;">{{item.label}}</view>
+          <view wx:if="{{cueVisible || playing && playbackMode === 'melody'}}" class="ruler-cursor" style="transform: translateX({{playhead}}rpx);"></view>
+        </view>
+        <view class="ruler-label">拍</view>
+      </view>
+      <scroll-view id="piano-roll" class="roll-scroll" scroll-x scroll-y enhanced show-scrollbar="{{true}}"
+        scroll-left="{{rollScrollLeft}}" scroll-top="{{rollScrollTop}}" bindscroll="onRollScroll" style="height: {{rollHeight}}rpx;">
+        <view class="roll-inner" style="width: {{rollWidth}}rpx; height: {{rollContentHeight}}rpx; --key-shift: {{rulerScroll}}px;">
+          <view wx:for="{{rows}}" wx:key="midi" class="pitch-row {{item.black ? 'black-row' : ''}}" style="top: {{item.y}}rpx;">
+            <text class="pitch-name">{{item.name}}</text>
+          </view>
+          <view class="roll-grid" style="background-size: {{beatWidth * 4}}rpx 100%, {{beatWidth}}rpx 100%;" aria-hidden="true"></view>
+          <view wx:for="{{rollNotes}}" wx:key="id" class="roll-note {{item.selected ? 'selected-note' : ''}} {{item.uncertain ? 'uncertain-note' : ''}} {{item.overlapping ? 'overlap-note' : ''}}"
+            style="left: {{item.x}}rpx; top: {{item.y}}rpx; width: {{item.width}}rpx;"
+            data-id="{{item.id}}" data-mode="move" bindtap="selectNote" bindtouchstart="onNoteTouchStart" catchtouchmove="onNoteTouchMove" bindtouchend="onNoteTouchEnd" bindtouchcancel="onNoteTouchEnd"
+            aria-role="button" aria-label="{{item.label}}，第 {{item.startLabel}} 拍，时值 {{item.durationLabel}} 拍">
+            <text wx:if="{{item.width > 39}}">{{item.label}}</text>
+            <view wx:if="{{item.selected && item.width >= 20}}" class="note-handle" data-id="{{item.id}}" data-mode="duration" catchtouchstart="onNoteTouchStart" catchtouchmove="onNoteTouchMove" catchtouchend="onNoteTouchEnd"></view>
+          </view>
+          <view wx:if="{{cueVisible || playing && playbackMode === 'melody'}}" class="playhead" style="transform: translateX({{playhead}}rpx);"></view>
+        </view>
+      </scroll-view>
+    </view>
+    <view class="roll-help between">
+      <text class="caption">点时间尺定位 · 拖音符移动</text>
+      <button id="expand-roll" class="text-button" bindtap="toggleExpanded">{{expanded ? '收起卷帘' : '展开编辑'}}</button>
+    </view>
+  </view>
 
-  <view class="section-heading"><text class="section-title">音符清单</text><text class="caption">点一行，编辑这个音符 ↗</text></view>
-  <view class="list-instructions">点选任意一行，会自动跳到音符编辑卡片。<view>起始拍改位置和留白；音高 ± 改半音；时值改长短。<view>数字框可直接输入，改好后点击空白处生效。</view></view></view>
-  <view class="note-list card"><view class="note-list-header"><text>序号</text><text>音高</text><text>起始拍</text><text>时值</text></view><scroll-view scroll-y class="note-list-scroll"><view wx:for="{{notes}}" wx:key="id" class="note-list-row {{item.selected ? 'active-row' : ''}} {{item.overlapping ? 'overlap-row' : ''}}" data-id="{{item.id}}" bindtap="selectFromList"><text>{{item.number}}<text wx:if="{{item.overlapping}}" class="overlap-tag"> 重叠</text><text wx:elif="{{item.uncertain}}" class="uncertain-dot"> ·</text></text><text>{{item.label}}</text><text>{{item.startLabel}}</text><text>{{item.durationLabel}} 拍</text></view></scroll-view></view>
-  <view class="editor-tip">哼唱中的滑音和颤音可能需要手动修正。<view>同一个音高连续哼唱时，分音可能需要自行补充。</view></view>
-  <button id="export-midi" class="primary export-button {{hasOverlaps ? 'export-conflict' : ''}}" bindtap="exportMidi" loading="{{exporting}}">{{hasOverlaps ? '解决重叠后导出 MIDI' : '导出 MIDI'}} <text>↗</text></button><view class="export-caption">{{hasOverlaps ? '重叠的音符已标出，你可以继续调整或试听。' : '把这段灵感，接着写成一首歌。'}}</view>
-  <button id="export-audio" class="secondary audio-export-button" bindtap="chooseAudio" loading="{{audioPreparing}}" disabled="{{audioPreparing}}">分享音频文件 ↗</button><view class="export-caption">分享当前旋律的 WAV 音频{{source ? '，或发送原始哼唱。' : '，保存后可用播放器试听。'}}</view>
+  <view wx:if="{{hasOverlaps}}" id="overlap-warning" class="overlap-warning">
+    <view>{{overlapCount}} 个音符重叠</view>
+    <text>{{draftState || '可继续拖动和试听。消除重叠后可保存和导出。'}}</text>
+  </view>
+  <view wx:if="{{expanded && selected}}" class="expanded-selection between">
+    <text>{{selected.label}} · {{selected.durationLabel}} 拍</text>
+    <button class="text-button" bindtap="splitSelected" disabled="{{!canSplit}}">拆分</button>
+    <button class="text-button" bindtap="editSelected">数值精调</button>
+  </view>
+  <view id="note-editor" class="inspector" wx:if="{{!expanded && selected}}">
+    <view class="inspector-header between">
+      <text class="selected-note-label">{{selected.label}} · 第 {{selected.number}} 音</text>
+      <view class="row">
+        <button class="text-button" bindtap="previewNote">{{playbackMode === 'note' ? '停止' : '听单音'}}</button>
+        <button id="split-note" class="text-button" bindtap="splitSelected" disabled="{{!canSplit}}" aria-label="在播放线拆分音符">拆分</button>
+        <button wx:if="{{canMerge}}" id="merge-note" class="text-button" bindtap="mergeSelected">合并同音</button>
+      </view>
+    </view>
+    <view class="note-fields tabular">
+      <view><view class="caption">起始拍</view><input id="start-input" type="digit" value="{{startInput}}" bindinput="onStartDraftInput" bindconfirm="startInput" bindblur="startInput" aria-label="起始拍" /></view>
+      <view><view class="caption">音高 · MIDI</view><input id="pitch-input" type="number" value="{{midiInput}}" bindinput="onMidiDraftInput" bindconfirm="pitchInput" bindblur="pitchInput" aria-label="MIDI 音高" /></view>
+      <view><view class="caption">时值 · 拍</view><input id="duration-input" type="digit" value="{{durationInput}}" bindinput="onDurationDraftInput" bindconfirm="durationInput" bindblur="durationInput" aria-label="时值（拍）" /></view>
+    </view>
+    <view wx:if="{{selected.gapBefore > 0}}" class="caption selection-hint">前方留白 {{selected.gapBefore}} 拍，可调整起始拍。</view>
+    <view wx:elif="{{0.125 > selected.duration}}" class="caption selection-hint">短音可在时值框中输入数字精调。</view>
+  </view>
+
+  <view class="transport-dock">
+    <view wx:if="{{listenSource === 'original'}}" class="original-scrub">
+      <text class="caption tabular">{{playTime}}</text>
+      <slider min="0" max="1000" step="1" value="{{originalProgress}}" disabled="{{!originalSeconds}}"
+        block-size="16" activeColor="#6a9c81" bindchanging="scrubOriginal" bindchange="seekOriginal" aria-label="原声播放位置"></slider>
+      <text class="caption tabular">{{originalDurationLabel || '原速'}}</text>
+    </view>
+    <view class="transport-row">
+      <button id="play-button" class="primary playback-button" bindtap="playCurrent" aria-label="{{playPreparing ? '取消准备试听' : playing ? '停止播放' : '播放'}}">
+        <view wx:if="{{playPreparing}}" class="prepare-spinner"></view>
+        <view wx:elif="{{playing}}" class="stop-square"></view>
+        <view wx:else class="play-triangle"></view>
+      </button>
+      <text wx:if="{{listenSource === 'melody'}}" class="transport-time caption tabular">{{playTime}}</text>
+      <view wx:if="{{source}}" class="source-switch">
+        <button id="melody-button" class="{{listenSource === 'melody' ? 'source-active' : ''}}" data-source="melody" bindtap="changeListenSource">旋律</button>
+        <button id="original-button" class="{{listenSource === 'original' ? 'source-active' : ''}}" data-source="original" bindtap="changeListenSource">原声</button>
+      </view>
+      <button id="open-composer" class="text-button" bindtap="openComposer">创作</button>
+      <button id="open-share" class="text-button share-button" bindtap="openShareMenu" disabled="{{audioPreparing || exporting}}">分享</button>
+    </view>
+  </view>
 </view>
-<view wx:if="{{exportVisible}}" class="overlay"><view class="dialog"><view class="export-file-icon">♪</view><view class="dialog-title">旋律已经装进 MIDI 了</view><view class="file-name">{{exportedName}}</view><view class="caption">标准 MIDI · {{exportedSize}} · {{bpm}} BPM</view><view class="dialog-copy export-copy">发送到文件传输助手，就能在电脑上导入 Cubase、Logic 等编曲软件，继续完成你的作品。</view><view wx:if="{{isDevtools}}" class="dev-hint">开发者工具已生成文件；文件转发需要在手机微信中验证。</view><button id="share-midi" class="primary" disabled="{{isDevtools}}" bindtap="shareMidi">发送到微信</button><button id="close-export" class="text-button" bindtap="closeExport">完成</button></view></view>
-<view wx:if="{{audioVisible && audioInfo}}" class="overlay"><view class="dialog"><view class="export-file-icon">♫</view><view class="dialog-title">音频文件准备好了</view><view class="file-name">{{audioInfo.name}}</view><view class="caption">WAV 音频 · {{audioInfo.duration}} 秒 · {{audioInfo.size}}</view><view class="dialog-copy export-copy">{{audioInfo.kind === 'original' ? '这是最初录下的哼唱，保持录音原速。' : '这是当前音符按 ' + audioInfo.bpm + ' BPM、' + audioInfo.tone + '合成的旋律。'}}<view>发送给微信好友或文件传输助手，保存后可在支持 WAV 的播放器中试听。</view></view><view wx:if="{{isDevtools}}" class="dev-hint">音频文件已生成；发送到微信需要在手机上操作。</view><button id="share-audio" class="primary" disabled="{{isDevtools || audioSharing}}" loading="{{audioSharing}}" bindtap="shareAudio">发送到微信</button><button id="close-audio" class="text-button" disabled="{{audioSharing}}" bindtap="closeAudio">完成</button></view></view>
+
+<view wx:if="{{listVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet" aria-role="dialog" aria-label="音符清单">
+    <view class="sheet-header"><text class="dialog-title">音符清单</text><button class="text-button" bindtap="closeNoteList">完成</button></view>
+    <view class="caption list-hint">点任一行，在卷帘中定位并精调。</view>
+    <view class="note-list-header"><text>音符</text><text>音高</text><text>起始拍</text><text>时值</text></view>
+    <scroll-view scroll-y class="note-list-scroll" scroll-top="{{listScrollTop}}" bindscroll="onNoteListScroll">
+      <view style="height: {{listTopPad}}px;"></view>
+      <button wx:for="{{listNotes}}" wx:key="id" class="note-list-row {{item.selected ? 'active-row' : ''}} {{item.overlapping ? 'overlap-row' : ''}}" data-id="{{item.id}}"
+        bindtap="selectFromList" aria-label="第 {{item.number}} 音，{{item.label}}，第 {{item.startLabel}} 拍，时值 {{item.durationLabel}} 拍">
+        <text>{{item.number}}<text wx:if="{{item.overlapping}}" class="overlap-tag"> 重叠</text></text><text>{{item.label}}</text><text>{{item.startLabel}}</text><text>{{item.durationLabel}} 拍</text>
+      </button>
+      <view style="height: {{listBottomPad}}px;"></view>
+    </scroll-view>
+  </view>
+</view>
+
+<view wx:if="{{toolsVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet" aria-role="dialog" aria-label="编辑工具">
+    <view class="sheet-header"><text class="dialog-title">编辑工具</text><button class="text-button" bindtap="closeEditorTools">完成</button></view>
+    <scroll-view scroll-y class="editor-tools-list">
+      <view class="group-title">当前音符 · {{selected.label}}</view>
+      <view class="adjust-row"><text>起始拍</text><button id="start-earlier" data-delta="-0.125" bindtap="nudgeStart">−⅛</button><button id="start-later" data-delta="0.125" bindtap="nudgeStart">＋⅛</button></view>
+      <view class="adjust-row"><text>音高</text><button id="pitch-down" data-delta="-1" bindtap="shiftPitch">−1</button><button id="pitch-up" data-delta="1" bindtap="shiftPitch">＋1</button></view>
+      <view class="adjust-row"><text>时值</text><button data-delta="-0.125" bindtap="nudgeDuration">−⅛</button><button data-delta="0.125" bindtap="nudgeDuration">＋⅛</button></view>
+      <view class="duration-presets">
+        <button data-value="0.25" bindtap="setDuration">¼ 拍</button><button data-value="0.5" bindtap="setDuration">½ 拍</button>
+        <button data-value="1" bindtap="setDuration">1 拍</button><button data-value="2" bindtap="setDuration">2 拍</button><button data-value="4" bindtap="setDuration">4 拍</button>
+      </view>
+      <view class="tool-line"><button id="delete-note" class="text-button destructive" bindtap="deleteNote" disabled="{{noteCount <= 1}}">删除音符</button><button id="add-note" class="text-button" bindtap="addNote">添加音符</button></view>
+      <view class="group-title hairline">整段旋律</view>
+      <view class="tool-line"><button class="text-button" data-delta="-12" bindtap="shiftAll">降八度</button><button class="text-button" data-delta="12" bindtap="shiftAll">升八度</button><button id="quantize-button" class="text-button" bindtap="quantize">对齐到 ¼ 拍</button></view>
+      <picker range="{{toneNames}}" value="{{toneIndex}}" bindchange="changeTone"><view class="tool-line tone-row"><text>试听音色</text><text class="caption">{{toneNames[toneIndex]}} ›</text></view></picker>
+      <view wx:if="{{recognitionLabel}}" class="caption engine-caption">识别模式 · {{recognitionLabel}}</view>
+    </scroll-view>
+  </view>
+</view>
+
+<view wx:if="{{shareVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet" aria-role="dialog" aria-label="分享文件">
+    <view class="sheet-header"><text class="dialog-title">分享文件</text><button class="text-button" bindtap="closeShareMenu">完成</button></view>
+    <view wx:if="{{hasOverlaps}}" class="caption share-hint">消除音符重叠后可导出 MIDI 和旋律 WAV。</view>
+    <button id="export-midi" class="file-option" data-kind="midi" bindtap="shareFormat" disabled="{{hasOverlaps}}"><text>MIDI 文件</text><text class="caption">.mid ›</text></button>
+    <button id="export-audio" class="file-option" data-kind="melody" bindtap="shareFormat" disabled="{{hasOverlaps}}"><text>旋律音频</text><text class="caption">WAV ›</text></button>
+    <button wx:if="{{source}}" id="export-original" class="file-option" data-kind="original" bindtap="shareFormat"><text>原始录音</text><text class="caption">WAV ›</text></button>
+  </view>
+</view>
+<view wx:if="{{exportVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet">
+    <view class="dialog-title">MIDI 已生成</view><view class="file-name">{{exportedName}}</view>
+    <view class="dialog-copy">{{exportedSize}} · {{exportedBpm}} BPM{{isDevtools ? ' · 可在手机微信发送' : ''}}</view>
+    <button id="share-midi" class="primary" disabled="{{isDevtools || midiSharing}}" loading="{{midiSharing}}" bindtap="shareMidi">发送到微信</button>
+    <button id="close-export" class="text-button dialog-action" disabled="{{midiSharing}}" bindtap="closeExport">完成</button>
+  </view>
+</view>
+<view wx:if="{{audioVisible && audioInfo}}" class="overlay sheet-overlay">
+  <view class="dialog sheet">
+    <view class="dialog-title">{{audioInfo.kind === 'original' ? '原始录音' : '旋律音频'}}</view><view class="file-name">{{audioInfo.name}}</view>
+    <view class="dialog-copy">WAV · {{audioInfo.duration}} 秒 · {{audioInfo.size}}{{isDevtools ? ' · 可在手机微信发送' : ''}}</view>
+    <button id="share-audio" class="primary" disabled="{{isDevtools || audioSharing}}" loading="{{audioSharing}}" bindtap="shareAudio">发送到微信</button>
+    <button id="close-audio" class="text-button dialog-action" disabled="{{audioSharing}}" bindtap="closeAudio">完成</button>
+  </view>
+</view>

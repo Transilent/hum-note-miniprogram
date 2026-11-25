@@ -37,6 +37,9 @@ class MemoryWx {
     this.failWrites = {};
     this.failReads = {};
     this.unlinked = [];
+    this.navigateCalls = [];
+    this.toasts = [];
+    this.failNavigations = 0;
     this.env = { USER_DATA_PATH: '/mock-only' };
   }
   getStorageSync(key) {
@@ -58,12 +61,21 @@ class MemoryWx {
   getFileSystemManager() {
     return {
       mkdirSync() {},
+      copyFile({ success }) { success(); },
       unlinkSync(filePath) { mockWx.unlinked.push(filePath); }
     };
   }
   getRecorderManager() {
     return { onStart() {}, onStop() {}, onError() {}, onInterruptionBegin() {}, stop() {} };
   }
+  navigateTo(options) {
+    this.navigateCalls.push(options.url);
+    if (this.failNavigations) {
+      this.failNavigations--;
+      if (options.fail) options.fail({ errMsg: 'mock navigateTo failure' });
+    }
+  }
+  showToast(options) { this.toasts.push(options.title); }
   showModal() {}
 }
 
@@ -137,7 +149,7 @@ function ensureNoFullResolution(dependencies) {
     setMock({ [IDEAS_KEY]: ideas });
     let page = storage.summaryPage(0, 20);
     assert.equal(page.total, 2);
-    assert.equal(page.items[0].preview.length, 18);
+    assert.equal(page.items[0].preview.length, 8);
     assert.equal(page.items[0].noteCount, 500);
     assert.ok(!('notes' in page.items[0]) && !('source' in page.items[0]));
     assert.equal(storage.list()[0].notes.length, 500);
@@ -241,6 +253,24 @@ function ensureNoFullResolution(dependencies) {
     assert.ok(!mockWx.getStorageSync(DIRTY_KEY));
   });
 
+  test('同一毫秒重存时，清理失败的旧草稿不会覆盖已保存的版本', () => {
+    setMock({});
+    const now = Date.now;
+    Date.now = () => BASE_TIME;
+    try {
+      const first = storage.save(makeIdea(0, 1));
+      const draft = storage.saveDraft(Object.assign({}, first, { title: '旧草稿' }));
+      assert.equal(storage.canRestoreDraft(first, draft), true);
+      mockWx.failWrites[DRAFTS_KEY] = 1;
+      const second = storage.save(Object.assign({}, first, { title: '已修正' }));
+      assert.equal(second.updatedAt, draft.draftUpdatedAt);
+      assert.equal(storage.getDraft(second.id).title, draft.title);
+      assert.equal(storage.canRestoreDraft(second, draft), false);
+      assert.equal(storage.summaryPage(0, 20).items[0].hasDraft, false);
+      assert.equal(storage.canRestoreDraft(null, draft), false);
+    } finally { Date.now = now; }
+  });
+
   test('相同 updatedAt 下 preview 高度或宽度变化会更新 revision', () => {
     const idea = makeIdea(0, 1);
     setMock({ [IDEAS_KEY]: [idea] });
@@ -282,7 +312,7 @@ function ensureNoFullResolution(dependencies) {
     assert.equal(patch.ideas.length, 20);
     assert.equal(patch.ideaTotal, 100);
     assert.equal(patch.hasMore, true);
-    assert.equal(patch.ideas.reduce((sum, item) => sum + item.preview.length, 0), 360);
+    assert.equal(patch.ideas.reduce((sum, item) => sum + item.preview.length, 0), 160);
     for (const item of patch.ideas) {
       assert.ok(!('notes' in item) && !('source' in item) && !('confidence' in item));
       assert.equal(item.preview.every(bar => Number.isFinite(bar.height) && Number.isFinite(bar.width)), true);
@@ -301,6 +331,19 @@ function ensureNoFullResolution(dependencies) {
     page.onReachBottom();
     assert.equal(page.data.ideas.length, 40);
     assert.ok(!('notes' in calls.at(-1).ideas[0]));
+
+    const loadedCalls = calls.length;
+    page.onShow();
+    assert.equal(calls.length, loadedCalls, 'returning with loaded pages and no data change must not setData');
+    const changed = clone(ideas[80]);
+    changed.title = '远离首屏的更新';
+    changed.notes = [changed.notes[0]];
+    storage.save(changed);
+    page.onShow();
+    assert.equal(page.data.ideas.length, 40, 'returning from an old idea must preserve loaded pagination depth');
+    assert.equal(page.data.ideas[0].title, changed.title);
+    assert.ok(!('notes' in calls.at(-1).ideas[0]));
+
     page.onReachBottom();
     page.onReachBottom();
     page.onReachBottom();
@@ -308,7 +351,68 @@ function ensureNoFullResolution(dependencies) {
     assert.equal(page.data.hasMore, false);
   });
 
-  test('handleStart 每 150ms 更新 recordSeconds，elapsed 仅在跨秒时写入', () => {
+  test('空记录本只发送一次空态，离页返回不变时不重复渲染', () => {
+    setMock({});
+    const { page, calls } = callPage(pageDefinition);
+    page.alive = true;
+    page.onShow();
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].ideas, []);
+    assert.equal(calls[0].ideaTotal, 0);
+    assert.equal(calls[0].hasMore, false);
+    const emptyCalls = calls.length;
+    page.onShow();
+    assert.equal(calls.length, emptyCalls);
+    const wxml = fs.readFileSync(path.join(APP, 'miniprogram/pages/index/index.wxml'), 'utf8');
+    assert.match(wxml, /wx:if="{{!ideaTotal}}" class="empty"/);
+  });
+
+  test('首页示例与创作入口快速连点只导航一次，失败后可重试', () => {
+    setMock({});
+    let built = callPage(pageDefinition).page;
+    built.alive = true;
+    built.onShow();
+    assert.equal(built.openCreation(), true);
+    assert.equal(built.openCreation(), false);
+    assert.equal(mockWx.navigateCalls.length, 1);
+    built.onShow();
+    assert.equal(built.openCreation(), true);
+    assert.equal(mockWx.navigateCalls.length, 2);
+
+    setMock({});
+    built = callPage(pageDefinition).page;
+    built.alive = true;
+    built.onShow();
+    assert.equal(built.openDemo(), true);
+    assert.equal(built.openDemo(), false);
+    assert.equal(mockWx.navigateCalls.length, 1);
+    assert.equal(storage.list().length, 1, 'double tap must create only one example');
+
+    setMock({});
+    mockWx.failNavigations = 1;
+    built = callPage(pageDefinition).page;
+    built.alive = true;
+    built.onShow();
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      built.openCreation();
+      built.openCreation();
+    } finally { console.warn = warn; }
+    assert.equal(mockWx.navigateCalls.length, 2, 'failed navigation must release the guard');
+    assert.ok(mockWx.toasts.some(title => /无法打开创作页/.test(title)));
+  });
+
+  test('长标题使用可收缩容器与省略号，窄屏不挤压旋律缩略图', () => {
+    const wxml = fs.readFileSync(path.join(APP, 'miniprogram/pages/index/index.wxml'), 'utf8');
+    const wxss = fs.readFileSync(path.join(APP, 'miniprogram/pages/index/index.wxss'), 'utf8');
+    assert.match(wxml, /class="idea-main"/);
+    assert.ok(wxss.includes('.idea-main { flex: 1; min-width: 0;'));
+    assert.ok(wxss.includes('.idea-title { width: 100%;') && wxss.includes('overflow: hidden; text-overflow: ellipsis;'));
+    assert.match(wxss, /\.mini-melody\s*\{[^}]*flex: 0 0 76rpx/);
+  });
+
+  test('录音时钟与状态只在跨秒时更新，减少视图通信', () => {
     const { page, calls } = callPage(pageDefinition);
     const realNow = Date.now, realSetInterval = global.setInterval, realClearInterval = global.clearInterval;
     let now = BASE_TIME, tick;
@@ -320,6 +424,7 @@ function ensureNoFullResolution(dependencies) {
       page.onLoad();
       assert.ok(!require.cache[require.resolve(path.join(APP, 'miniprogram/utils/record-permission.js'))],
         'onLoad may register callbacks without loading permission');
+      page.data.starting = true;
       page.handleStart();
       calls.length = 0;
       now = BASE_TIME + 100;
@@ -328,10 +433,7 @@ function ensureNoFullResolution(dependencies) {
       tick();
       now = BASE_TIME + 1100;
       tick();
-      assert.equal(calls.length, 3);
-      assert.ok(calls[0].recordSeconds > 0 && calls[1].recordSeconds > calls[0].recordSeconds);
-      assert.ok(!('elapsed' in calls[0]) && !('elapsed' in calls[1]));
-      assert.equal(calls[2].elapsed, '00:01');
+      assert.deepEqual(calls, [{ recordSeconds: 1, elapsed: '00:01' }]);
       const wxml = fs.readFileSync(path.join(APP, 'miniprogram/pages/index/index.wxml'), 'utf8');
       assert.ok(wxml.includes('recordSeconds / 30 * 100'), 'record progress still consumes recordSeconds');
     } finally {
@@ -339,6 +441,57 @@ function ensureNoFullResolution(dependencies) {
       global.setInterval = realSetInterval;
       global.clearInterval = realClearInterval;
     }
+  });
+
+  test('权限等待中离页时，晚到的录音 onStart 会停止录音器', () => {
+    const { page, calls } = callPage(pageDefinition);
+    let stops = 0;
+    page.onLoad();
+    page.recorder = { stop() { stops++; } };
+    page.visible = false;
+    page.data.starting = true;
+    page.handleStart();
+    assert.equal(stops, 1);
+    assert.equal(page.cancelled, true);
+    assert.equal(page.data.starting, false);
+    assert.equal(page.data.recording, false);
+    assert.ok(calls.length >= 1);
+  });
+
+  test('一次录音只请求一次停止，重复 onStop 不会重复进入识别', () => {
+    const { page } = callPage(pageDefinition);
+    page.onLoad();
+    page.visible = true;
+    page.data.starting = true;
+    let stopCalls = 0, finished = 0;
+    page.recorder = { stop() { stopCalls++; } };
+    page.finishRecording = () => {
+      finished++;
+      page.setData({ recording: false, stopping: false, processing: true });
+    };
+    try {
+      page.handleStart();
+      assert.equal(page.recordTap(), true);
+      assert.equal(page.recordTap(), false);
+      assert.equal(stopCalls, 1);
+      page.handleStop({ tempFilePath: '/test.wav' });
+      page.handleStop({ tempFilePath: '/test.wav' });
+      assert.equal(finished, 1);
+      assert.equal(page.data.processing, true);
+      assert.equal(page.data.stopping, false);
+    } finally { page.onUnload(); }
+  });
+
+  test('摘要暂时读取失败时，已提交的灵感仍正常打开', () => {
+    setMock({ [IDEAS_KEY]: [makeIdea(0, 3)] });
+    mockWx.failReads[IDEAS_KEY] = 1;
+    const { page } = callPage(pageDefinition);
+    page.onLoad();
+    page.visible = true;
+    assert.equal(page.openRecognized('idea-0'), true);
+    assert.deepEqual(mockWx.navigateCalls, ['/pages/editor/editor?id=idea-0']);
+    assert.equal(page.refresh(), true);
+    assert.equal(page.data.ideaTotal, 1);
   });
 
   await asyncTest('permission 首次使用时加载，并复用可 mock 的同一 CJS 实例', async () => {
@@ -360,6 +513,46 @@ function ensureNoFullResolution(dependencies) {
       assert.equal(require.cache[permissionPath].exports, permission);
     } finally {
       permission.prepareRecording = original;
+    }
+  });
+
+  await asyncTest('原音写入 await 返回前离页时，删除本次文件且不保存或导航', async () => {
+    setMock({});
+    const audio = require('../miniprogram/utils/audio');
+    const pitch = require('../miniprogram/utils/pitch');
+    const originalDecode = audio.decodeFile, originalTranscribe = pitch.transcribe;
+    const originalSaveRecording = storage.saveRecording, originalSave = storage.save;
+    let resolveCopy, sourcePath = '/mock-only/humnote/recording-cancelled.wav', saveCalls = 0, copyCalls = 0;
+    audio.decodeFile = async () => ({ samples: new Float32Array(16000), sampleRate: 16000 });
+    pitch.transcribe = async () => ({ notes: [{ id: 'cancelled-note', midi: 60, start: 0, duration: 1 }], confidence: 0.9, duration: 1 });
+    storage.saveRecording = () => {
+      copyCalls++;
+      return new Promise(resolve => { resolveCopy = () => resolve(sourcePath); });
+    };
+    storage.save = () => { saveCalls++; throw new Error('must not save after leave'); };
+    try {
+      const { page } = callPage(pageDefinition);
+      page.alive = true;
+      page.cancelled = false;
+      const pending = page.finishRecording({ duration: 1000, tempFilePath: '/tmp/cancelled.wav' });
+      for (let i = 0; i < 40 && !resolveCopy; i++) await new Promise(resolve => setImmediate(resolve));
+      assert.equal(copyCalls, 1);
+      assert.ok(resolveCopy, 'saveRecording should be pending');
+      page.alive = false;
+      page.cancelled = true;
+      resolveCopy();
+      await pending;
+      assert.equal(saveCalls, 0);
+      assert.equal(mockWx.navigateCalls.length, 0);
+      assert.ok(mockWx.unlinked.includes(sourcePath));
+      const pendingRecordings = storage.pendingRecordings();
+      assert.equal(pendingRecordings.length, 1);
+      assert.ok(!mockWx.unlinked.includes(pendingRecordings[0].path));
+    } finally {
+      audio.decodeFile = originalDecode;
+      pitch.transcribe = originalTranscribe;
+      storage.saveRecording = originalSaveRecording;
+      storage.save = originalSave;
     }
   });
 

@@ -1,0 +1,34 @@
+{
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "rounds": 5
+  },
+  "caveat": "Desktop Node model/bridge measurements; not phone frame rate or cold start.",
+  "before": {
+    "homeCachedMs": 0.7360999999999933,
+    "homeFirstBytes": 12802,
+    "unchangedReturnBytes": 0,
+    "editorFirstBytes": 130112,
+    "renderedNodes": {
+      "roll": 500,
+      "list": 500
+    },
+    "drag40Calls": 80,
+    "drag40Bytes": 23295,
+    "dragMedianMs": 0.4234000000000151
+  },
+  "after": {
+    "homeCachedMs": 0.799500000000009,
+    "homeFirstBytes": 12802,
+    "unchangedReturnBytes": 0,
+    "editorFirstBytes": 35832,
+    "renderedNodes": {
+      "roll": 78,
+      "list": 48
+    },
+    "drag40Calls": 40,
+    "drag40Bytes": 21698,
+    "dragMedianMs": 0.3072999999999979
+  }
+}

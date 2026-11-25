@@ -22,9 +22,9 @@ module.exports = async function(check, asyncCheck) {
       { id: 'a', midi: 60, start: 0, duration: 1 }, { id: 'b', midi: 64, start: 2, duration: 1 }, { id: 'c', midi: 67, start: 4, duration: 1 }
     ] };
     storage.save(fixture);
-    const createPage = () => {
+    const createPage = (id) => {
       const page = Object.assign({}, definition, { data: clone(definition.data), setData(patch) { applyPatch(this.data, patch); } });
-      pages.push(page); page.onLoad({ id: fixture.id }); return page;
+      pages.push(page); page.onLoad({ id: id || fixture.id }); return page;
     };
     const touchStart = (page, id, mode) => page.onNoteTouchStart({ currentTarget: { dataset: { id, mode: mode || 'move' } }, touches: [{ clientX: 100, clientY: 100 }] });
     const touchEnd = (page, x, y) => page.onNoteTouchEnd({ changedTouches: [{ clientX: x, clientY: y }] });
@@ -89,6 +89,22 @@ module.exports = async function(check, asyncCheck) {
       page.selectFromList({ currentTarget: { dataset: { id: 'c' } } });
       assert.equal(page.data.selectedId, 'c'); assert.equal(global.lastEditorScroll.selector, '#note-editor');
       assert.deepEqual(page.idea.notes, before); delete global.lastEditorScroll;
+    });
+    check('识别短音可精调、撤销重做并重新载入，点选和改音高不拉长时值', () => {
+      const id = 'recognized-short-test';
+      storage.save({ id, bpm: 100, title: 'short', notes: [
+        { id: 'short-a', midi: 69, start: 0, duration: .08 }, { id: 'short-b', midi: 72, start: .2, duration: .107 }
+      ] });
+      const short = createPage(id); assert.equal(note(short, 'short-a').duration, .08);
+      touchStart(short, 'short-a', 'duration'); touchEnd(short, 100, 100);
+      assert.equal(note(short, 'short-a').duration, .08);
+      short.durationInput({ detail: { value: '.09' } }); assert.equal(note(short, 'short-a').duration, .09);
+      short.undo(); assert.equal(note(short, 'short-a').duration, .08);
+      short.redo(); assert.equal(note(short, 'short-a').duration, .09);
+      touchStart(short, 'short-a'); touchEnd(short, 100, 78);
+      assert.equal(note(short, 'short-a').duration, .09); assert.equal(note(short, 'short-b').duration, .107);
+      assert.equal(short.flushSave(), true);
+      const restored = createPage(id); assert.equal(note(restored, 'short-a').duration, .09);
     });
   } finally {
     for (const page of pages) { clearTimeout(page.saveTimer); if (page.player) page.player.destroy(); }

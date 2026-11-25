@@ -117,6 +117,7 @@ function assertWav(filePath, byteLength) {
   let player;
   let staleResult;
   let statFallback;
+  let raceResult;
   try {
     fsState.mkdirThrows = true;
     const [piano, soft] = await Promise.all([
@@ -193,7 +194,16 @@ function assertWav(filePath, byteLength) {
     assertWav(cachedResult.filePath, cachedResult.byteLength);
     assert.equal(cleanupAudioExport(cachedResult), true);
     assert.ok(files.has(previewPath), '清理自己的副本不能删除 Player 缓存');
-    console.log('PASS 缓存复用：同 key 复制到独立路径，跳过合成，cleanup 保留 Player 缓存');
+
+    const declaredDuration = player.previewCache.duration;
+    player.previewCache.duration = 999;
+    const staleDurationResult = await prepareAudioExport({
+      kind: 'melody', notes, bpm: 100, tone: 'piano', title: '旧时长', cachedPreview: player.previewCache
+    });
+    player.previewCache.duration = declaredDuration;
+    assert.ok(Math.abs(staleDurationResult.duration - .9) < .000001, '缓存键命中时不能沿用旧 source duration');
+    assert.equal(cleanupAudioExport(staleDurationResult), true);
+    console.log('PASS 缓存复用：同 key 复制到独立路径，跳过合成，cleanup 保留 Player 缓存，旧时长不泄漏');
 
     files.delete(previewPath);
     synthesizeCalls = 0;
@@ -213,6 +223,24 @@ function assertWav(filePath, byteLength) {
     assert.equal(synthesizeCalls, 1, '缓存副本 stat 失败应清理副本并重新合成');
     assertWav(statFallback.filePath, statFallback.byteLength);
     console.log('PASS 缓存失效：复制失败或副本 stat 失败会安全降级，不复用缺失文件');
+
+    const raceNotes = [{ midi: 60, start: 0, duration: .25, velocity: 80 }];
+    const wrappedSynthesize = audio.synthesizeAsync;
+    let synthesizedMidi;
+    audio.synthesizeAsync = function(input) {
+      raceNotes[0].midi = 72;
+      synthesizedMidi = input[0].midi;
+      return wrappedSynthesize.apply(this, arguments);
+    };
+    try {
+      raceResult = await prepareAudioExport({ kind: 'melody', notes: raceNotes, bpm: 100, tone: 'soft', title: '输入快照' });
+    } finally {
+      audio.synthesizeAsync = wrappedSynthesize;
+    }
+    assert.equal(synthesizedMidi, 60, '本次导出必须使用校验时固定的音符快照');
+    assert.ok(Math.abs(raceResult.duration - .55) < .000001);
+    assertWav(raceResult.filePath, raceResult.byteLength);
+    console.log('PASS 异步导出期间修改编辑数组不会改变本次已校验的音符或时长');
 
     const beforeErrorFiles = new Set(files.keys());
     fsState.failWrite = true;
@@ -250,6 +278,7 @@ function assertWav(filePath, byteLength) {
     fsState.failShareStat = false;
     if (staleResult) cleanupAudioExport(staleResult);
     if (statFallback) cleanupAudioExport(statFallback);
+    if (raceResult) cleanupAudioExport(raceResult);
     if (player) player.destroy();
     if (originalWx === undefined) delete global.wx; else global.wx = originalWx;
   }

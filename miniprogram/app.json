@@ -2,15 +2,17 @@
   "pages": ["pages/index/index", "pages/editor/editor", "pages/compose/compose"],
   "window": {
     "navigationBarTitleText": "哼记",
-    "navigationBarBackgroundColor": "#F7F5F0",
-    "navigationBarTextStyle": "black",
-    "backgroundColor": "#F7F5F0",
-    "backgroundTextStyle": "dark"
+    "navigationBarBackgroundColor": "@windowBackground",
+    "navigationBarTextStyle": "@navigationText",
+    "backgroundColor": "@windowBackground",
+    "backgroundTextStyle": "@backgroundText"
   },
   "permission": {
     "scope.record": { "desc": "用于录制你的哼唱，在本机识别为可编辑的旋律" }
   },
   "sitemapLocation": "sitemap.json",
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "lazyCodeLoading": "requiredComponents",
   "__usePrivacyCheck__": true
 }

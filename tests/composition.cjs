@@ -258,11 +258,11 @@ check('音高、时值越界和输入重叠都拒绝，绝不静默夹音或裁�
   );
   assert.throws(
     () => createVariation([note('augment-limit', 60, 0, 32)], { preset: 'augment', mode: 'replace' }),
-    /超出 0.125–32/
+    /超出 0.0625–32/
   );
   assert.throws(
-    () => createVariation([note('diminish-limit', 60, 0, 0.125)], { preset: 'diminish', mode: 'replace' }),
-    /超出 0.125–32/
+    () => createVariation([note('diminish-limit', 60, 0, 0.0625)], { preset: 'diminish', mode: 'replace' }),
+    /超出 0.0625–32/
   );
   assert.throws(
     () => createVariation([note('overlap-a', 60, 0, 2), note('overlap-b', 64, 1, 1)], {
@@ -281,6 +281,16 @@ check('preset、mode、有限数、整数与范围参数得到中文校验', () 
   assert.throws(() => createVariation(example, { preset: 'fragment', fragmentSize: 9 }), /2 到 8/);
   assert.throws(() => createVariation(example, { preset: 'fragment', repeatCount: 5 }), /2 到 4/);
   assert.doesNotThrow(() => createVariation(example, { unexpected: NaN }));
+});
+
+check('连续短音减值保持 0.0625 拍和共享端点，可直接导出 MIDI', () => {
+  const source = Array.from({ length: 16 }, (_, index) => note('dense-' + index, 60 + index % 4, index * .125, .125));
+  const halved = createVariation(source, { preset: 'diminish', mode: 'replace' });
+  assert.equal(halved.totalBeats, 1);
+  assert.deepEqual(halved.notes.map(item => item.start), source.map(item => item.start / 2));
+  assert.ok(halved.notes.every(item => item.duration === .0625));
+  assert.deepEqual(normalizeNotes(halved.notes), halved.notes);
+  assert.equal(midiNoteOnCount(encodeMidi(halved.notes, 100)), source.length);
 });
 
 check('纯函数冻结输入不变、ID 全局唯一、输出兼容 normalizeNotes 并可导出 MIDI', () => {

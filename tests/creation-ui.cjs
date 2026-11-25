@@ -18,7 +18,7 @@ const fsState = {
 };
 const ui = {
   navigateTo: [], navigateBack: 0, redirects: [], toasts: [], modals: [], loadings: 0, hides: 0,
-  shares: [], actionSheets: [], shareThrows: false
+  shares: [], shareThrows: false
 };
 
 function resetEnv() {
@@ -100,7 +100,6 @@ function makeWx() {
     showModal(options) { ui.modals.push(options); },
     showLoading() { ui.loadings++; },
     hideLoading() { ui.hides++; },
-    showActionSheet(options) { ui.actionSheets.push(options); },
     shareFileMessage(options) {
       if (ui.shareThrows) throw new Error('share unavailable');
       ui.shares.push(options);
@@ -162,7 +161,9 @@ function capturePage(relativePath) {
 function makePage(definition, overrides) {
   const page = Object.assign({}, definition, overrides || {});
   page.data = clone(definition.data);
+  page.setDataCalls = [];
   page.setData = function setData(patch) {
+    this.setDataCalls.push(clone(patch));
     applyPatch(this.data, patch);
   };
   return page;
@@ -226,14 +227,6 @@ function loadComposerForEditor(editor, channel) {
   return loadCompose({ id: editor.idea.id, returnToEditor: '1', tone: editor.data.tone }, channel);
 }
 
-async function waitFor(predicate, label) {
-  for (let attempt = 0; attempt < 80; attempt++) {
-    if (predicate()) return;
-    await new Promise(resolve => setImmediate(resolve));
-  }
-  throw new Error('Timed out waiting for ' + label);
-}
-
 let passed = 0;
 async function check(label, fn) {
   await fn();
@@ -278,6 +271,200 @@ async function check(label, fn) {
     page.onUnload();
   });
 
+  await check('空库示例、100×500 摘要和长标题窄屏只发送有界页面数据', () => {
+    resetEnv();
+    resetStorage([]);
+    const empty = loadCompose({}, null);
+    assert.equal(empty.data.hasSource, false);
+    assert.deepEqual(empty.data.sources, []);
+    assert.equal(empty.useDemo(), true);
+    assert.equal(empty.data.hasSource, true);
+    assert.equal(empty.useDemo(), false, 'rapid example taps must not create another example');
+    assert.equal(storage.list().length, 1);
+    empty.onUnload();
+
+    resetEnv();
+    const ideas = Array.from({ length: 100 }, (_, index) => {
+      const notes = Array.from({ length: 500 }, (__, noteIndex) => note('bulk-' + index + '-' + noteIndex,
+        60 + noteIndex % 24, noteIndex * 0.125, 0.125));
+      return makeIdea('bulk-' + index, notes, { title: index === 0
+        ? '这是一段用于检查窄屏溢出与省略效果的非常非常长的灵感标题'.repeat(3)
+        : '灵感 ' + index, bpm: 240, updatedAt: 1000 - index });
+    });
+    resetStorage(ideas);
+    const started = process.hrtime.bigint();
+    const page = loadCompose({ id: 'bulk-0' }, null);
+    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+    assert.equal(page.data.sources.length, 100);
+    assert.equal(page.data.sourceCount, 500);
+    assert.equal(page.data.sourceTitle.length > 40, true);
+    assert.ok(page.setDataCalls.length <= 1, 'source list and selected summary should cross the bridge together');
+    for (const patch of page.setDataCalls) {
+      assert.equal(Object.prototype.hasOwnProperty.call(patch, 'notes'), false);
+      assert.equal(Object.prototype.hasOwnProperty.call(patch, 'source'), false);
+      const nodes = patch.sources || [];
+      assert.equal(nodes.every(item => !('notes' in item) && !('source' in item)), true);
+    }
+    const payloadBytes = Buffer.byteLength(JSON.stringify(page.setDataCalls));
+    assert.ok(payloadBytes < 100000, 'compose UI payload must stay bounded: ' + payloadBytes);
+    assert.ok(elapsedMs < 2500, 'desktop compose fixture unexpectedly slow: ' + elapsedMs.toFixed(1) + 'ms');
+    console.log('COMPOSE ' + elapsedMs.toFixed(1) + ' ms / ' + payloadBytes + ' bytes for 100×500 notes');
+    const wxml = require('node:fs').readFileSync(require('node:path').join(__dirname, '../miniprogram/pages/compose/compose.wxml'), 'utf8');
+    const wxss = require('node:fs').readFileSync(require('node:path').join(__dirname, '../miniprogram/pages/compose/compose.wxss'), 'utf8');
+    assert.ok(wxml.includes('class="source-title"'));
+    assert.match(wxss, /\.source-title\s*\{[^}]*min-width: 0;[^}]*text-overflow: ellipsis;/);
+    assert.match(wxss, /\.source-row \.caption\s*\{[^}]*flex-shrink: 0;[^}]*white-space: nowrap;/);
+    page.onUnload();
+  });
+
+  await check('八预设快速切换、非法输入、500 音符与 120 秒边界保持非破坏预览', () => {
+    resetEnv();
+    const sourceNotes = Array.from({ length: 250 }, (_, index) => note('limit-' + index, 60 + index % 12, index * .25, .25));
+    const source = makeIdea('preset-limit', sourceNotes, { bpm: 100 });
+    resetStorage([source]);
+    const page = loadCompose({ id: source.id }, null);
+    const sourceBefore = clone(page.source);
+    const storageBefore = storageSnapshot();
+    assert.equal(page.data.presets.length, 8);
+    assert.equal(page.candidate.notes.length, 500);
+    assert.equal(page.candidate.totalNotes, 500);
+    for (let pass = 0; pass < 4; pass++) {
+      for (const preset of page.data.presets) page.choosePreset({ currentTarget: { dataset: { id: preset.id } } });
+    }
+    assert.equal(page.data.presetId, 'fragment');
+    assert.equal(page.candidate.presetId, 'fragment');
+    assert.ok(page.setDataCalls.every(patch => !Object.prototype.hasOwnProperty.call(patch, 'notes')));
+    assert.deepEqual(page.source, sourceBefore);
+    assert.deepEqual(storageSnapshot(), storageBefore);
+
+    const stableId = page.data.presetId;
+    assert.equal(page.choosePreset({ currentTarget: { dataset: { id: 'not-a-preset' } } }), false);
+    assert.equal(page.chooseMode({ currentTarget: { dataset: { mode: 'overwrite' } } }), false);
+    assert.equal(page.chooseParameter({ currentTarget: { dataset: { key: 'gap', value: 3 } } }), false);
+    assert.equal(page.changeTone({ detail: { value: '2' } }), false);
+    assert.equal(page.data.presetId, stableId);
+    assert.equal(page.data.mode, 'append');
+    page.onUnload();
+
+    resetEnv();
+    const tooManyNotes = Array.from({ length: 251 }, (_, index) => note('many-' + index, 60, index * .125, .125));
+    const tooMany = makeIdea('too-many', tooManyNotes, { bpm: 240 });
+    resetStorage([tooMany]);
+    const overflow = loadCompose({ id: tooMany.id }, null);
+    assert.equal(overflow.candidate, null);
+    assert.match(overflow.data.error, /500/);
+    assert.equal(overflow.data.resultCount, 0);
+    overflow.chooseMode({ currentTarget: { dataset: { mode: 'replace' } } });
+    assert.ok(overflow.candidate && overflow.candidate.notes.length === 251);
+    overflow.onUnload();
+
+    resetEnv();
+    const boundary = makeIdea('time-limit', [
+      note('t1', 60, 0, 20), note('t2', 62, 20, 20),
+      note('t3', 64, 40, 20), note('t4', 65, 60, 20)
+    ], { bpm: 40 });
+    resetStorage([boundary]);
+    const slow = loadCompose({ id: boundary.id }, null);
+    assert.equal(slow.candidate, null);
+    assert.match(slow.data.error, /120/);
+    slow.chooseMode({ currentTarget: { dataset: { mode: 'replace' } } });
+    assert.ok(slow.candidate);
+    assert.equal(slow.data.resultDuration, '120.0');
+    assert.deepEqual(storage.get(boundary.id), boundary);
+    slow.onUnload();
+  });
+
+  await check('快速切换试听时，过期异步失败不会停止当前播放或误报', async () => {
+    resetEnv();
+    const source = makeIdea('preview-race', [note('p1', 60, 0, 1), note('p2', 64, 1, 1)], { bpm: 100 });
+    resetStorage([source]);
+    const page = loadCompose({ id: source.id }, null);
+    const calls = [], stops = [];
+    page.player = {
+      requested: false,
+      stop() { this.requested = false; stops.push('stop'); },
+      destroy() { this.requested = false; },
+      playNotes(notes) {
+        let resolve, reject;
+        const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; });
+        calls.push({ notes: clone(notes), resolve, reject });
+        return promise;
+      }
+    };
+    const first = page.preview({ currentTarget: { dataset: { mode: 'source' } } });
+    assert.equal(page.data.playPreparing, true);
+    assert.equal(page.data.playing, false, 'preparing a composition must not claim audio is already playing');
+    const second = page.preview({ currentTarget: { dataset: { mode: 'result' } } });
+    assert.equal(calls.length, 2);
+    calls[1].resolve(true);
+    assert.equal(await second, true);
+    assert.equal(page.data.playPreparing, true);
+    page.audioStarted();
+    assert.equal(page.data.playback, 'result');
+    calls[0].reject(new Error('stale synthesis failure'));
+    assert.equal(await first, false);
+    assert.equal(page.data.playing, true, 'stale failure must not stop the current result preview');
+    assert.equal(page.data.playback, 'result');
+    assert.equal(ui.toasts.some(text => /生成试听失败/.test(text)), false);
+
+    const third = page.preview({ currentTarget: { dataset: { mode: 'source' } } });
+    const fourth = page.preview({ currentTarget: { dataset: { mode: 'source' } } });
+    assert.equal(await fourth, false, 'second tap on the same preview stops it');
+    calls[2].reject(new Error('cancelled synthesis'));
+    assert.equal(await third, false);
+    assert.equal(page.data.playing, false);
+    assert.equal(ui.toasts.some(text => /生成试听失败/.test(text)), false);
+
+    const before = calls.length;
+    assert.equal(page.changeTone({ detail: { value: 'bad' } }), false);
+    assert.equal(page.changeTone({}), false);
+    assert.equal(await page.preview({ currentTarget: { dataset: { mode: 'invalid' } } }), false);
+    assert.equal(calls.length, before, 'invalid preview mode must not reach the player');
+    page.onUnload();
+  });
+
+  await check('另存满额与复制失败有反馈，离页时清理本次副本并保留原录音', async () => {
+    resetEnv();
+    const originalSource = putFile(ROOT + '/recording-pending.wav', 72);
+    const source = makeIdea('save-pending', [note('s1', 60, 0, 1)], { source: originalSource });
+    resetStorage([source]);
+    const page = loadCompose({ id: source.id }, null);
+    fsState.holdCopies = true;
+    const pending = page.saveAsNew();
+    assert.equal(page.data.saving, true);
+    assert.equal(fsState.pendingCopies.length, 1);
+    const copyPath = fsState.pendingCopies[0].destPath;
+    page.onUnload();
+    releaseCopy();
+    assert.equal(await pending, false);
+    assert.equal(fsState.files.has(copyPath), false);
+    assert.equal(fsState.files.has(originalSource), true);
+    assert.equal(storage.list().length, 1);
+    assert.equal(ui.redirects.length, 0);
+
+    resetEnv();
+    const missingSource = ROOT + '/recording-missing.wav';
+    const copyFail = makeIdea('save-copy-fail', [note('cf', 60, 0, 1)], { source: missingSource });
+    resetStorage([copyFail]);
+    const failed = loadCompose({ id: copyFail.id }, null);
+    assert.equal(await failed.saveAsNew(), false);
+    assert.match(ui.modals.at(-1).content, /no such file/);
+    assert.equal(storage.list().length, 1);
+    assert.equal(failed.data.saving, false);
+    failed.onUnload();
+
+    resetEnv();
+    const fullIdeas = Array.from({ length: 100 }, (_, index) => makeIdea('full-' + index,
+      [note('full-note-' + index, 60, 0, 1)], { updatedAt: 1000 - index }));
+    resetStorage(fullIdeas);
+    const full = loadCompose({ id: fullIdeas[0].id }, null);
+    assert.equal(await full.saveAsNew(), false);
+    assert.ok(ui.toasts.some(text => /记录本已满/.test(text)));
+    assert.equal(fsState.copies.length, 0);
+    assert.equal(storage.list().length, 100);
+    full.onUnload();
+  });
+
   await check('editor 阻止重叠进入 composer，通道正向上报并拒绝过期指纹', () => {
     resetEnv();
     const source = makeIdea('source-events', [note('e1', 60, 0, 1), note('e2', 64, 1, 1)]);
@@ -297,6 +484,7 @@ async function check(label, fn) {
     const opened = openComposer(editor);
     assert.equal(opened.opened, true);
     assert.match(opened.navigation.url, /returnToEditor=1/);
+    assert.equal(editor.openComposer(), false, 'a second tap must not open a competing composition channel');
     const compose = loadComposerForEditor(editor, opened.channel);
     const candidate = clone(compose.candidate.notes);
     compose.applyToSource();
@@ -461,6 +649,57 @@ async function check(label, fn) {
     page.onUnload();
   });
 
+  await check('导航成功回调缺少 eventChannel 时，仍应用结果并返回正确的编辑器', () => {
+    resetEnv();
+    const source = makeIdea('fallback-channel', [note('x1', 60, 0, .5), note('x2', 64, .5, .5)]);
+    resetStorage([source]);
+    const editor = loadEditor(source.id), opened = openComposer(editor);
+    const composer = loadComposerForEditor(editor, opened.channel);
+    composer.route = 'pages/compose/compose';
+    editor.compositionChannel = undefined;
+    const existing = global.getCurrentPages;
+    global.getCurrentPages = () => [editor, composer];
+    try {
+      assert.equal(composer.applyToSource(), true);
+      assert.equal(editor.idea.notes.length, 4);
+      assert.equal(composer.data.applying, false);
+      assert.equal(ui.navigateBack, 1);
+    } finally {
+      global.getCurrentPages = existing;
+      composer.onUnload();
+      editor.onUnload();
+    }
+  });
+
+  await check('MIDI 文件信息随导出快照固定，发送只开一次且取消或异常后可重试', async () => {
+    resetEnv();
+    const source = makeIdea('midi-share', [note('m1', 60, 0, 1), note('m2', 64, 1, .75)], { title: '导出快照', bpm: 100 });
+    resetStorage([source]);
+    const editor = loadEditor(source.id);
+    const writing = editor.exportMidi();
+    editor.changeTitle({ detail: { value: '编辑新名字' } });
+    editor.changeBpm({ detail: { value: '120' } });
+    assert.equal(await writing, true);
+    assert.equal(editor.data.exportedName, '导出快照.mid');
+    assert.equal(editor.data.exportedBpm, 100);
+    assert.equal(fsState.files.get(editor.exportedPath).subarray(0, 4).toString(), 'MThd');
+    assert.equal(editor.shareMidi(), true);
+    assert.equal(editor.shareMidi(), false);
+    editor.closeExport();
+    assert.equal(editor.data.exportVisible, true);
+    assert.equal(ui.shares.length, 1);
+    ui.shares[0].fail({ errMsg: 'shareFileMessage:fail cancel' });
+    assert.equal(editor.data.midiSharing, false);
+    ui.shareThrows = true;
+    assert.equal(editor.shareMidi(), false);
+    assert.equal(editor.data.exportVisible, true);
+    ui.shareThrows = false;
+    assert.equal(editor.shareMidi(), true);
+    ui.shares[1].success();
+    assert.equal(editor.data.exportVisible, false);
+    editor.onUnload();
+  });
+
   await check('音频入口准备 WAV，取消清理临时文件，分享 cancel 可重试且 devtools 不调用 API', async () => {
     resetEnv();
     const originalSource = putFile(ROOT + '/recording-audio.wav', 144);
@@ -480,13 +719,10 @@ async function check(label, fn) {
       destroy() {}
     };
 
-    wx.showActionSheet = options => {
-      ui.actionSheets.push(options);
-      options.success({ tapIndex: 0 });
-    };
-    editor.chooseAudio();
-    assert.match(ui.actionSheets.at(-1).itemList[0], /WAV/);
-    await waitFor(() => editor.audioExport && !editor.data.audioPreparing, 'melody WAV preparation');
+    editor.openShareMenu();
+    assert.equal(editor.data.shareVisible, true);
+    assert.equal(await editor.shareFormat({ currentTarget: { dataset: { kind: 'melody' } } }), true);
+    assert.equal(editor.data.shareVisible, false);
     assert.equal(editor.audioExport.kind, 'melody');
     assert.equal(editor.audioExport.owned, true);
     assert.match(editor.audioExport.fileName, /（旋律）\.wav$/);

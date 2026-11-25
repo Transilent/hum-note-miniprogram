@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-01",
+  "namedChecks": 142,
+  "yinExactFrames": 2712,
+  "qualityCorpusChecks": 15,
+  "randomOverlapSets": 240,
+  "randomOverlapNotes": 7721,
+  "randomOverlapPairs": 48311,
+  "dense500OverlapPairs": 124750,
+  "sampleRates": [
+    8000,
+    16000,
+    44100,
+    48000
+  ],
+  "syntheticMelodyMatches": [
+    6,
+    6,
+    6,
+    6
+  ],
+  "simulator": {
+    "window": [
+      390,
+      753
+    ],
+    "sdk": "3.7.12",
+    "recordingPipelineMs": 140,
+    "recordingPitches": [
+      60,
+      62,
+      64,
+      67,
+      69,
+      67
+    ],
+    "cachedPreviewPrepareMs": 19,
+    "progressUpdatesInTwoSeconds": 66,
+    "maxProgressGapMs": 47,
+    "lastAudioDifferenceSeconds": 0.0288,
+    "actualMidiBytes": 98,
+    "actualMidiNotes": 6,
+    "actualMidiBpm": 100,
+    "actualMidiPpq": 480,
+    "melodyWavBytes": 148220,
+    "originalWavBytes": 107566,
+    "compositionApplyUndo": true,
+    "independentRecordingCopy": true,
+    "shrink500To8": {
+      "noteCount": 8,
+      "listNotes": 8,
+      "rollNotes": 8,
+      "listTopPad": 0
+    },
+    "testDataCleaned": true,
+    "finalErrorLogMatches": 0
+  },
+  "license": "Apache-2.0",
+  "sourceFileCount": 59,
+  "caveat": "Constructed audio and desktop simulator/model measurements; not a claim of phone FPS, microphone permission behavior or human transcription accuracy."
+}

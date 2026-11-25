@@ -1,26 +1,90 @@
 <view class="page home">
-  <view class="brand-row between"><text class="eyebrow">HUM A LITTLE. KEEP IT.</text><view class="brand-mark">♪</view></view>
-  <view class="headline">留住，<view>脑海里的那段旋律。</view></view>
-  <view class="intro">不必懂乐谱，先把灵感哼出来。</view>
-
-  <view class="record-card card {{recording ? 'is-recording' : ''}}">
-    <view class="between"><view class="pill"><view class="status-dot {{recording ? 'live' : ''}}"></view>{{recording ? '正在聆听' : processing ? '正在整理旋律' : '随时捕捉灵感'}}</view><text class="record-limit">最长 30 秒</text></view>
-    <view class="waveform {{recording ? 'wave-live' : ''}} {{processing ? 'wave-process' : ''}}"><view wx:for="{{bars}}" wx:key="index" class="wave-bar" style="height: {{item}}rpx; animation-delay: {{index * 0.07}}s;"></view></view>
-    <view class="record-time">{{recording ? elapsed : processing ? progress + '%' : '哼一段，记下来'}}</view>
-    <view class="record-help">{{recording ? '再点一次，完成录音' : processing ? '正在本机识别音高与音符' : '安静一点，旋律会更清晰'}}</view>
-    <button id="record-button" class="record-button {{recording ? 'stop-button' : ''}}" bindtap="recordTap" disabled="{{processing || starting}}" aria-label="{{recording ? '停止录音' : '开始录音'}}"><view wx:if="{{recording}}" class="stop-icon"></view><view wx:else class="mic-icon"><view class="mic-body"></view><view class="mic-base"></view></view></button>
-    <view class="record-cta">{{starting ? '准备录音…' : recording ? '完成录音' : processing ? '稍等一小会儿' : '点击开始哼唱'}}</view>
-    <view wx:if="{{recording}}" class="record-progress"><view style="width: {{recordSeconds / 30 * 100}}%;"></view></view>
-    <view class="local-hint"><view class="tiny-lock"></view>录音与识别都在本机完成</view>
+  <view class="home-top between">
+    <view class="wordmark row"><view class="brand-wave" aria-hidden="true"><view></view><view></view><view></view><view></view><view></view></view><text>哼记</text></view>
+    <button id="open-settings" class="text-button" bindtap="openSettings" disabled="{{recording || starting || processing}}">设置</button>
   </view>
 
-  <button id="demo-button" class="demo-card between" bindtap="openDemo" disabled="{{recording || starting || processing}}"><view class="row"><view class="demo-icon">♫</view><view class="demo-text"><view>先听听一段示例</view><view class="caption">试试试听、改音符和导出 MIDI</view></view></view><text class="arrow">↗</text></button>
-  <button id="home-compose" class="compose-entry between" bindtap="openCreation" disabled="{{recording || starting || processing}}"><view><view>从灵感，继续创作</view><view class="caption">复制、倒序、倒影，让旋律再长出一句</view></view><text>↗</text></button>
-  <view class="section-heading"><text class="section-title">我的灵感</text><text class="count">{{ideaTotal}} 段旋律</text></view>
-  <view wx:if="{{!ideaTotal}}" class="empty-card"><view class="empty-notes">♩<text>♪</text>♫</view><view class="empty-title">第一段旋律，等你哼出来</view><view class="caption">也许是散步时，也许就在这一刻。</view></view>
-  <view wx:for="{{ideas}}" wx:key="id" class="idea card" data-id="{{item.id}}" bindtap="openIdea" bindlongpress="ideaMenu"><view class="between"><view class="idea-title">{{item.title}}</view><view class="mini-melody"><view wx:for="{{item.preview}}" wx:for-item="bar" wx:key="index" style="height: {{bar.height}}rpx; width: {{bar.width}}rpx;"></view></view></view><view class="between idea-meta"><text>{{item.dateLabel}} · {{item.secondsLabel}} 秒 · {{item.noteCount}} 个音符</text><text class="idea-tag">{{item.hasDraft ? '有未完成草稿' : item.isDemo ? '示例' : '旋律'}} ↗</text></view></view>
-  <view wx:if="{{hasMore}}" class="library-more" bindtap="loadMore">继续上拉，载入更多灵感</view>
-  <view class="footer">灵感不用完整，记下来就有了开始。<view class="footer-small">单声部哼唱 · 本地保存 · MIDI 导出</view></view>
-</view>
-<view wx:if="{{privacyVisible}}" class="overlay"><view class="dialog"><view class="dialog-title">把声音留在你的设备里</view><view class="dialog-copy">哼记需要麦克风来录制你主动开始的哼唱。选择“同意并继续”后，才会继续请求麦克风权限；录音、旋律识别和灵感记录均在本机完成。</view><button class="text-button" bindtap="openPrivacy">查看《{{privacyName}}》</button><button id="privacy-agree" class="primary" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agreePrivacy">同意并继续</button><button class="text-button" bindtap="disagreePrivacy">暂不录音</button></view></view>
+  <view class="home-heading between">
+    <view class="page-title">我的灵感</view>
+    <button id="demo-button" class="text-button" bindtap="openDemo" disabled="{{recording || starting || processing || checkingRecognition}}">打开示例 ↗</button>
+  </view>
 
+  <view wx:if="{{processing}}" class="capture capture-progress">
+    <view class="between"><view class="capture-title">识别旋律</view><text class="progress-number tabular">{{progress}}%</text></view>
+    <view class="meter" aria-role="progressbar" aria-label="识别进度 {{progress}}%"><view style="width: {{progress}}%;"></view></view>
+    <view class="between"><text class="caption">{{processingLabel}}</text><button id="cancel-recognition" class="text-button" bindtap="cancelRecognition">取消</button></view>
+  </view>
+  <button wx:else id="record-button" class="capture capture-button {{recording ? 'capture-live' : ''}}" bindtap="recordTap"
+    aria-label="{{stopping ? '正在结束录音' : recording ? '完成录音' : '开始录音'}}" disabled="{{starting || stopping || checkingRecognition}}">
+    <view class="capture-copy">
+      <view class="capture-title tabular">{{starting ? '准备录音…' : recording ? elapsed : '录一段'}}</view>
+      <view class="caption">{{stopping ? '正在结束录音…' : recording ? '录音中，点按完成' : '本机识别 · 最长 30 秒'}}</view>
+    </view>
+    <view class="record-circle" aria-hidden="true">
+      <view wx:if="{{recording}}" class="stop-icon"></view>
+      <view wx:else class="mic-icon"><view class="mic-body"></view><view class="mic-base"></view></view>
+    </view>
+  </button>
+  <view wx:if="{{recording}}" class="meter live-meter"><view style="width: {{recordSeconds / 30 * 100}}%;"></view></view>
+
+  <button wx:if="{{pendingCount}}" id="open-pending" class="pending-entry" bindtap="openPendingRecordings"
+    disabled="{{recording || starting || processing || checkingRecognition}}">
+    <text>待识别录音</text><text class="caption">{{pendingCount}} 段 ›</text>
+  </button>
+
+  <view class="section-heading"><text class="section-title">最近</text><text class="caption">{{ideaTotal}} 段</text></view>
+  <view class="idea-list">
+    <view wx:if="{{!ideaTotal}}" class="empty">录下第一段旋律，它会出现在这里。</view>
+    <button wx:for="{{ideas}}" wx:key="id" class="idea-row" data-id="{{item.id}}" bindtap="openIdea" bindlongpress="ideaMenu"
+      disabled="{{recording || starting || processing || checkingRecognition}}" aria-label="{{item.title}}，{{item.secondsLabel}} 秒{{item.hasDraft ? '，有未完成草稿' : ''}}">
+      <view class="mini-melody" aria-hidden="true">
+        <view wx:for="{{item.preview}}" wx:for-item="bar" wx:key="key" style="height: {{bar.height * .64}}rpx;"></view>
+      </view>
+      <view class="idea-main"><view class="idea-title">{{item.title}}</view><view class="caption">{{item.dateLabel}} · {{item.secondsLabel}} 秒{{item.hasDraft ? ' · 有草稿' : ''}}</view></view>
+      <text class="idea-arrow" aria-hidden="true">›</text>
+    </button>
+  </view>
+  <button wx:if="{{hasMore}}" class="text-button library-more" bindtap="loadMore">载入更多灵感</button>
+  <button id="home-compose" class="text-button home-compose" bindtap="openCreation" disabled="{{recording || starting || processing || checkingRecognition}}">{{ideaTotal ? '从已有灵感创作' : '旋律创作'}} ›</button>
+</view>
+
+<view wx:if="{{settingsVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet" aria-role="dialog" aria-label="设置">
+    <view class="sheet-header"><text class="dialog-title">设置</text><button class="text-button" bindtap="closeSettings">完成</button></view>
+    <view class="caption">旋律识别</view>
+    <view class="recognition-modes" aria-label="旋律识别模式">
+      <button id="recognition-standard" class="{{recognitionMode === 'standard' ? 'mode-selected' : ''}}" data-mode="standard" bindtap="changeRecognitionMode"
+        disabled="{{checkingRecognition}}" aria-role="radio" aria-checked="{{recognitionMode === 'standard'}}">标准识别</button>
+      <button id="recognition-swift" class="{{recognitionMode === 'swift-f0' ? 'mode-selected' : ''}}" data-mode="swift-f0" bindtap="changeRecognitionMode"
+        disabled="{{checkingRecognition}}" aria-role="radio" aria-checked="{{recognitionMode === 'swift-f0'}}">SwiftF0 · 实验</button>
+    </view>
+    <view class="caption">{{recognitionMode === 'swift-f0' ? '本机模型，支持兼容性检查与诊断。' : '轻量本机识别，可在录音前切换。'}}</view>
+    <button wx:if="{{recognitionMode === 'swift-f0'}}" id="check-recognition" class="text-button dialog-action" bindtap="checkRecognitionCompatibility"
+      disabled="{{checkingRecognition}}">{{checkingRecognition ? '正在检查…' : '检查实验识别兼容性'}}</button>
+    <button class="text-button dialog-action" bindtap="openPrivacy">查看隐私保护指引</button>
+  </view>
+</view>
+
+<view wx:if="{{pendingVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet" aria-role="dialog" aria-label="待识别录音">
+    <view class="sheet-header"><text class="dialog-title">待识别录音</text><button class="text-button" bindtap="closePendingRecordings">完成</button></view>
+    <scroll-view scroll-y class="pending-list">
+      <view wx:if="{{!pendingCount}}" class="empty">目前没有待识别的录音。</view>
+      <view wx:for="{{pendingRecordings}}" wx:key="id" class="pending-row between">
+        <view><view>{{item.title}}</view><view class="caption">{{item.seconds}}</view></view>
+        <view class="row"><button class="text-button" data-id="{{item.id}}" bindtap="retryPendingRecording">识别</button>
+          <button class="text-button pending-remove" data-id="{{item.id}}" bindtap="deletePendingRecording">删除</button></view>
+      </view>
+    </scroll-view>
+  </view>
+</view>
+
+<view wx:if="{{privacyVisible}}" class="overlay sheet-overlay">
+  <view class="dialog sheet" aria-role="dialog" aria-label="录音权限">
+    <view class="dialog-title">允许录制你的哼唱</view>
+    <view class="dialog-copy">哼记使用麦克风录制你主动开始的哼唱。录音、旋律识别和灵感记录都在本机完成。</view>
+    <button class="text-button dialog-action" bindtap="openPrivacy">查看《{{privacyName}}》</button>
+    <button id="privacy-agree" class="primary" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agreePrivacy">同意并继续</button>
+    <button class="text-button dialog-action" bindtap="disagreePrivacy">暂不录音</button>
+  </view>
+</view>

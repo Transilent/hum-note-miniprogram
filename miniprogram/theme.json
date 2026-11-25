@@ -1,0 +1,4 @@
+{
+  "light": { "windowBackground": "#F5F6F3", "navigationText": "black", "backgroundText": "dark" },
+  "dark": { "windowBackground": "#171D1B", "navigationText": "white", "backgroundText": "light" }
+}

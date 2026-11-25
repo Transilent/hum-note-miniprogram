@@ -3,3 +3,18 @@ Copyright 2026 Transilent
 
 Licensed under the Apache License, Version 2.0.
 See the LICENSE file for the full license text.
+
+Third-party component: SwiftF0 0.3.0
+Copyright (c) 2025-2026 Lars Nieradzik
+https://github.com/lars76/swift-f0
+Licensed under the MIT License. Full text is included at
+miniprogram/models/LICENSE.swift-f0.txt.
+HumNote modifies the ONNX graph for float32-logit output and WeChat import,
+and ports pitch decoding and note segmentation to JavaScript.
+Model provenance and modifications: docs/SwiftF0实验识别.md.
+Fixed-shape CNN, JavaScript spectral frontend and diagnostics:
+docs/2026-11-03-SwiftF0兼容适配.md.
+Embedded model transport and native local-file loading:
+docs/2026-11-03-SwiftF0模型路径修复.md.
+HumNote pitch-to-note refinements and signal conditioning:
+docs/2026-11-03-SwiftF0识别优化.md.

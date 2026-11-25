@@ -1,6 +1,6 @@
 'use strict';
 
-const { normalizeNotes, uid } = require('./music');
+const { normalizeNotes, uid, MIN_DURATION, round } = require('./music');
 
 const PRESETS = Object.freeze([
   Object.freeze({ id: 'repeat', title: '重复', subtitle: '整句复述', tip: '把整段旋律原样再演奏一次，保留原有呼吸和留白。' }),
@@ -18,13 +18,8 @@ const MAX_NOTES = 500;
 const MAX_SECONDS = 120;
 const MIN_MIDI = 21;
 const MAX_MIDI = 108;
-const MIN_DURATION = 0.125;
 const MAX_DURATION = 32;
 const INTERVAL_EPSILON = 1e-9;
-
-function round3(value) {
-  return Math.round((value + Number.EPSILON) * 1000) / 1000;
-}
 
 function fail(code, message) {
   const error = new Error(message);
@@ -83,7 +78,7 @@ function readOptions(options) {
     }
   }
 
-  return { preset, mode, bpm, gap: round3(rawGap), transpose, fragmentSize, repeatCount };
+  return { preset, mode, bpm, gap: round(rawGap), transpose, fragmentSize, repeatCount };
 }
 
 function makeIdFactory(usedIds) {
@@ -144,8 +139,8 @@ function prepareSource(notes) {
   const records = notes.map((note, originalIndex) => ({
     id: note.id == null ? nextId() : note.id,
     midi: note.midi,
-    start: round3(note.start),
-    duration: round3(note.duration),
+    start: round(note.start),
+    duration: round(note.duration),
     velocity: note.velocity,
     confidence: note.confidence,
     original: note,
@@ -165,10 +160,10 @@ function prepareSource(notes) {
   const relative = records.map(record => ({
     source: record,
     midi: record.midi,
-    start: round3(record.start - sourceStart),
-    duration: round3(record.duration)
+    start: round(record.start - sourceStart),
+    duration: record.duration
   }));
-  const sourceSpan = round3(Math.max(...relative.map(note => note.start + note.duration)));
+  const sourceSpan = round(Math.max(...relative.map(note => note.start + note.duration)));
   return { records, relative, sourceStart, sourceSpan, anchorMidi: records[0].midi, usedIds, nextId };
 }
 
@@ -179,7 +174,7 @@ function cloneTiming(records) {
 function timeSpan(records) {
   const minimum = Math.min(...records.map(note => note.start));
   const end = Math.max(...records.map(note => note.start + note.duration));
-  return { minStart: round3(minimum), span: round3(end - minimum) };
+  return { minStart: round(minimum), span: round(end - minimum) };
 }
 
 function makeVariation(source, options) {
@@ -191,7 +186,7 @@ function makeVariation(source, options) {
   if (preset === 'retrograde' || preset === 'retrograde-inversion') {
     return relative.map(note => {
       const variant = cloneTiming([note])[0];
-      variant.start = round3(sourceSpan - (note.start + note.duration));
+      variant.start = round(sourceSpan - (note.start + note.duration));
       if (preset === 'retrograde-inversion') variant.midi = 2 * anchorMidi - note.midi;
       return variant;
     });
@@ -211,10 +206,14 @@ function makeVariation(source, options) {
 
   if (preset === 'augment' || preset === 'diminish') {
     const factor = preset === 'augment' ? 2 : 0.5;
-    return relative.map(note => Object.assign(cloneTiming([note])[0], {
-      start: round3(note.start * factor),
-      duration: round3(note.duration * factor)
-    }));
+    return relative.map(note => {
+      const start = round(note.start * factor);
+      const end = round((note.start + note.duration) * factor);
+      const rawDuration = note.duration * factor;
+      // Round shared endpoints together to preserve adjacent notes.
+      const duration = rawDuration < MIN_DURATION ? rawDuration : round(end - start);
+      return Object.assign(cloneTiming([note])[0], { start, duration });
+    });
   }
 
   if (preset === 'fragment') {
@@ -224,13 +223,13 @@ function makeVariation(source, options) {
     const motif = relative.slice(0, options.fragmentSize);
     const motifStart = Math.min(...motif.map(note => note.start));
     const motifEnd = Math.max(...motif.map(note => note.start + note.duration));
-    const motifSpan = round3(motifEnd - motifStart);
+    const motifSpan = round(motifEnd - motifStart);
     const variants = [];
     for (let repetition = 0; repetition < options.repeatCount; repetition++) {
-      const offset = round3(repetition * motifSpan);
+      const offset = round(repetition * motifSpan);
       motif.forEach(note => {
         variants.push(Object.assign(cloneTiming([note])[0], {
-          start: round3(note.start - motifStart + offset)
+          start: round(note.start - motifStart + offset)
         }));
       });
     }
@@ -265,8 +264,8 @@ function outputNote(note, id, offset) {
   const result = {
     id,
     midi: note.midi,
-    start: round3(note.start + offset),
-    duration: round3(note.duration)
+    start: round(note.start + offset),
+    duration: round(note.duration)
   };
   if (Number.isFinite(note.source.velocity)) result.velocity = note.source.velocity;
   if (Number.isFinite(note.source.confidence)) result.confidence = note.source.confidence;
@@ -292,7 +291,7 @@ function createVariation(notes, options) {
   let offset;
   let assembled;
   if (parsed.mode === 'append') {
-    offset = round3(source.sourceStart + source.sourceSpan + parsed.gap);
+    offset = round(source.sourceStart + source.sourceSpan + parsed.gap);
     assembled = source.records.map(record => Object.assign({}, record.original, {
       id: record.id,
       midi: record.midi,
@@ -300,7 +299,7 @@ function createVariation(notes, options) {
       duration: record.duration
     }));
   } else {
-    offset = round3(source.sourceStart - dimensions.minStart);
+    offset = round(source.sourceStart - dimensions.minStart);
     assembled = [];
   }
 
@@ -317,7 +316,7 @@ function createVariation(notes, options) {
   }
   assertNoResultOverlaps(resultNotes);
 
-  const totalBeats = round3(resultNotes.reduce((end, note) => Math.max(end, note.start + note.duration), 0));
+  const totalBeats = round(resultNotes.reduce((end, note) => Math.max(end, note.start + note.duration), 0));
   const totalSeconds = totalBeats * 60 / parsed.bpm;
   if (totalSeconds > MAX_SECONDS + INTERVAL_EPSILON) {
     fail('TIME_LIMIT', '发展后的总时长为 ' + totalSeconds.toFixed(2) + ' 秒（含原前导空白，' + parsed.bpm + ' BPM），超过 ' + MAX_SECONDS + ' 秒上限；请缩短乐句、减少两段间留白，或回编辑页提高 BPM。');
